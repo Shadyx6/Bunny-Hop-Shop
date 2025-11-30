@@ -52,7 +52,7 @@ const prodModel = mongoose.Schema({
     },
     isApproved: {
         type: Boolean,
-        default: false
+        default: true
     },
     seller: {
         type: mongoose.Schema.Types.ObjectId,

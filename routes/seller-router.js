@@ -53,19 +53,17 @@ router.post('/sellersign', isLoggedIn, async (req, res) => {
         return res.redirect('/seller/dashboard');
     }
 
-    // Password check
     bcrypt.compare(password, user.password, async (err, result) => {
         if (!result) {
             req.flash('sellerError', 'Incorrect password');
             return res.redirect('/seller/signup');
         }
 
-        // ✅ Update in database
+
         user.isSeller = true;
         await user.save();
 
-        // ⬅️ THIS IS THE FIX
-        // ⭐ Create NEW JWT TOKEN with updated isSeller = true
+
         let updatedToken = jwt.sign(
             {
                 username: user.username,
@@ -75,7 +73,7 @@ router.post('/sellersign', isLoggedIn, async (req, res) => {
             process.env.TOKEN
         );
 
-        // 🔥 Replace old token
+    
         res.cookie('token', updatedToken);
 
         req.flash('error', 'Seller account successfully created!');
