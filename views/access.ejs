@@ -1,117 +1,126 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/stylesheets/style.css">
-  
-  <style>
-    video{
-        height: 700px;
-        width: 700px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Bunny Hop Shop</title>
+    <link rel="shortcut icon" href="/media/favicon.png" type="image/x-icon">
+    <link rel="stylesheet" href="/stylesheets/design-system.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
 </head>
-<body>
-   <div class="wrapper w-screen relative overflow-x-hiddden bg-[#FFFFF0]">
-    <div class="page h-screen flex lg:flex-row flex-col">
-       <div class="left lg:w-1/2 w-full h-full flex-col flex max-lg:px-2">
-        <h1 class=" logo flex absolute text-5xl mt-8 ml-4 font-sans">
-            <span>B</span>
-            <span>u</span>
-            <span>n</span>
-            <span>n</span> 
-            <span>y</span>
-            <!-- <span>&nbsp;</span> -->
-            <span>h</span>
-            <span class="text-yellow-400">O</span>
-            <span>p</span>
-        </h1> 
-        <section class="lg:h-screen max-lg:mt-36 max-lg:ml-0 h-fit lg:w-96 max-lg:rounded justify-items-center w-[95vw] py-8 bg-pink-300 lg:ml-60 relative">
-            <div class="container lg:absolute lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 flex justify-center flex-col items-center gap-2 font-serif">
-                <div class="ups flex flex-col items-center justify-center"><h1 class=" text-5xl">Lets <span class="text-blue-500">Begin</span> </h1>
-                    <p class="">Create your account now!</p>
-                </div>
-            <div class="flex flex-col font-sans ">
-                <form action="/register" method="post" class="flex flex-col gap-4 items-center">
-                    <input type="text" placeholder="Full Name" name="fullName" class="w-64 h-fit py-1 px-2 rounded outline-none" required>
-                    <input type="email" placeholder="Email" name="email" class="w-64 h-fit py-1 px-2 rounded outline-none" required>
-                    <input type="text" placeholder="Username" name="username" class="w-64 h-fit py-1 px-2 rounded outline-none" required>
-                    <div class="flex justify-between w-64 h-fit py-1 px-2 rounded bg-white">
-                        <input id="signupPassword" type="password" placeholder="Password" name="password" autocomplete="new-password" class="bg-transparent outline-none border-none" required/>
-                        <span class="cursor-pointer" id="signupToggle" onclick="togglePassword('signupPassword', 'signupToggle')">show</span>
+
+<body style="background-color: var(--color-bg-primary);">
+
+    <header style="padding: 1rem 0;">
+        <div class="container" style="text-align: center;">
+            <a href="/" class="logo">Bunny <span class="text-accent">Hop</span></a>
+        </div>
+    </header>
+
+    <main style="min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 2rem;">
+        <div
+            style="background: white; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); width: 100%; max-width: 900px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden;">
+
+            <!-- Login Section -->
+            <div style="padding: 3rem; display: flex; flex-direction: column; justify-content: center;">
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">Welcome Back</h2>
+                <p style="color: var(--color-text-secondary); margin-bottom: 2rem;">Login to access your account</p>
+
+                <% if (typeof loginError !=='undefined' && loginError.length> 0) { %>
+                    <div
+                        style="background: #fee2e2; color: #dc2626; padding: 0.75rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                        <%= loginError[0] %>
                     </div>
-                    <!-- <input type="password" placeholder="Password" name="password" class="w-64 h-fit py-1 px-2 rounded" required> -->
-                    <%if(registerError && registerError.length > 0) { %>
-                        <p class="text-red-500 font-medium"><%= registerError[0] %></p>
                     <% } %>
-                    <p class="mt-4 lg:hidden text-blue-800">Already a user? <a href="/login">Login here</a></p>
-                    <button type="submit" name="submit" class="h-fit mt-0 lg:mt-4 w-[90%] bg-blue-500 text-white py-2 px-6 rounded-lg hover:shadow-black-400/50 hover:shadow-lg hover:scale-125 transition-all ease-linear duration-100">Get Started</button>
-                </form>
+
+                        <form action="/login" method="post">
+                            <input type="email" name="email" placeholder="Email Address" required
+                                style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; margin-bottom: 1rem; font-family: inherit;">
+                            <input type="password" name="password" placeholder="Password" required
+                                style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; margin-bottom: 1rem; font-family: inherit;">
+
+                            <div style="text-align: right; margin-bottom: 1.5rem;">
+                                <a href="/forgot-password"
+                                    style="font-size: 0.9rem; color: var(--color-accent-primary);">Forgot Password?</a>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;">Log
+                                In</button>
+                        </form>
+
+                        <div
+                            style="display: flex; align-items: center; gap: 1rem; margin: 1rem 0; color: var(--color-text-secondary);">
+                            <div style="flex: 1; height: 1px; background: var(--color-border);"></div>
+                            <span style="font-size: 0.9rem;">OR</span>
+                            <div style="flex: 1; height: 1px; background: var(--color-border);"></div>
+                        </div>
+
+                        <a href="/auth/google" class="btn btn-outline"
+                            style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <i class="ri-google-fill" style="font-size: 1.2rem;"></i> Continue with Google
+                        </a>
             </div>
-            </div>
-        </section>
-        <% if(sellerError && sellerError.length > 0) { %>
-            <div class="seller fixed inset-0 flex justify-center items-center ">
-                <div class="rounded-lg h-12 flex items-center justify-center p-4 w-11/12 max-w-lg bg-gray-200">
-                    <p class="text-red-600 text-lg md:text-2xl lg:text-3xl"><%= sellerError[0] %></p>
-                </div>
-            </div>
-        <% } %>        
-       </div>
-       <div class="right w-1/2 h-screen relative lg:block hidden">
-        <div class="container absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 flex justify-center flex-col items-center gap-2 font-serif">
-            <div class="ups flex flex-col items-center justify-center">
-            <h1 class="text-4xl">Already a <span class="text-blue-500">user?</span></h1>
-            <p class="text-2xl">Login here</p>
-        </div>
-        <div class="flex flex-col font-sans ">
-            <form action="/login" method="post" class="flex flex-col gap-4 items-center">
-                <input type="email" placeholder="Email" name="email" class="w-64 h-fit py-1 px-2 rounded outline-none bg-slate-200">
-                <div class="flex flex-col gap-2">
-                    <div class="flex justify-between w-64 h-fit py-1 px-2 rounded bg-slate-200">
-                        <input id="loginPassword" type="password" placeholder="Password" name="password" autocomplete="new-password" class="bg-transparent outline-none border-none" required/>
-                        <span class="cursor-pointer" id="loginToggle" onclick="togglePassword('loginPassword', 'loginToggle')">show</span>
+
+            <!-- Register Section -->
+            <div
+                style="background-color: var(--color-bg-secondary); padding: 3rem; display: flex; flex-direction: column; justify-content: center;">
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">Create Account</h2>
+                <p style="color: var(--color-text-secondary); margin-bottom: 2rem;">Join us for exclusive offers</p>
+
+                <% if (typeof registerError !=='undefined' && registerError.length> 0) { %>
+                    <div
+                        style="background: #fee2e2; color: #dc2626; padding: 0.75rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                        <%= registerError[0] %>
                     </div>
-                    <p class="text-blue-800 text-xs cursor-pointer">
-                        <a href="/forgot-password" class="text-left">Forgot Password?</a>
-                    </p>
-                </div>
-                <!-- <input type="password" placeholder="Password" name="password" class="w-64 h-fit py-1 px-2 rounded bg-slate-200"> -->
-                <%if(loginError && loginError.length > 0) { %>
-                    <p class="text-red-500 font-medium"><%= loginError[0] %></p>
-                <% } %>
-                <button type="submit" name="submit" class="h-fit w-fit bg-blue-500 border-2 border-bg-gray-200 py-1 px-6 rounded-lg text-white
-                " >Log in</button>
-            </form>
-            
+                    <% } %>
 
-            
+                        <form action="/register" method="post">
+                            <input type="text" name="fullName" placeholder="Full Name" required
+                                style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; margin-bottom: 1rem; font-family: inherit;">
+                            <input type="text" name="username" placeholder="Username" required
+                                style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; margin-bottom: 1rem; font-family: inherit;">
+                            <input type="email" name="email" placeholder="Email Address" required
+                                style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; margin-bottom: 1rem; font-family: inherit;">
+                            <input type="password" name="password" placeholder="Password" required
+                                style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; margin-bottom: 1rem; font-family: inherit;">
+
+                            <button type="submit" class="btn btn-outline"
+                                style="width: 100%; margin-top: 1rem; background: white;">Sign Up</button>
+                        </form>
+
+                        <div
+                            style="display: flex; align-items: center; gap: 1rem; margin: 1rem 0; color: var(--color-text-secondary);">
+                            <div style="flex: 1; height: 1px; background: var(--color-border);"></div>
+                            <span style="font-size: 0.9rem;">OR</span>
+                            <div style="flex: 1; height: 1px; background: var(--color-border);"></div>
+                        </div>
+
+                        <a href="/auth/google" class="btn btn-outline"
+                            style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: white;">
+                            <i class="ri-google-fill" style="font-size: 1.2rem;"></i> Continue with Google
+                        </a>
+
+                        <!-- Mobile Toggle -->
+                        <p class="lg-hidden" style="margin-top: 2rem; text-align: center; display: none;">
+                            Already have an account? <a href="#" onclick="toggleView()"
+                                style="color: var(--color-accent-primary);">Log In</a>
+                        </p>
+            </div>
+
         </div>
-       
-        </div>
-       </div>
-    </div>
-    <script>
-        let showPassword = {};
+    </main>
 
-        function togglePassword(inputId, toggleId) {
-            showPassword[inputId] = !showPassword[inputId];
+    <style>
+        @media (max-width: 768px) {
+            main>div {
+                grid-template-columns: 1fr !important;
+            }
 
-            const input = document.getElementById(inputId);
-            const text = document.getElementById(toggleId);
-
-            input.type = showPassword[inputId] ? "text" : "password";
-            text.innerText = showPassword[inputId] ? "hide" : "show";
+            /* This is a simple stack for now. Real tabs would be better but this works for "hub" concept */
         }
-    </script>
+    </style>
 
-
-     <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script> 
-
-    <dotlottie-player class="absolute cart max-lg:scale-50 -top-[11%] left-[5%] lg:left-[42%] lg:top-[45%]" src="https://lottie.host/9e339971-8d89-443f-86b5-01c2d4b54897/rB5kN0ac9C.json" background="transparent" speed="1" style="width: 350px; height: 350px;" loop autoplay></dotlottie-player>
-   </div>
-   
 </body>
+
 </html>

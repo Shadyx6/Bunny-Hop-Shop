@@ -1,25 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Return and Exchange Policy</title>
-</head>
+<%- include('./partials/Header.ejs') %>
 
-<body>
- <%- include('./partials/Header.ejs') %>
+  <main style="padding: var(--spacing-xl) 0; min-height: 80vh; background-color: var(--color-bg-primary);">
+    <div class="container" style="max-width: 800px;">
 
-   <div class="flex justify-center flex-col gap-4 px-10 py-6 min-h-screen">
-        <h1 class="text-3xl text-center text-yellow-400">Return and Exchange Policy</h1>
-        <div class="md:text-xl text-black text-left">
-           Thank you for shopping with us! 💛 At this time, we are unable to offer returns or exchanges, and all sales are final
+      <div
+        style="background: white; padding: 3rem; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md);">
+        <h1
+          style="font-size: 2.5rem; font-family: var(--font-heading); margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
+          Return & Exchange</h1>
+
+        <div class="prose" style="font-size: 1.1rem; line-height: 1.8; color: var(--color-text-secondary);">
+          <p style="margin-bottom: 1.5rem;">
+            We want you to love what you ordered! If you aren't completely happy with your purchase, we're here to help.
+          </p>
+
+          <h3 style="color: var(--color-text-primary); font-size: 1.3rem; margin-top: 2rem; margin-bottom: 1rem;">Return
+            Policy</h3>
+          <ul style="list-style: disc; padding-left: 1.5rem; margin-bottom: 1.5rem;">
+            <li>Items can be returned within <strong>7 days</strong> of delivery.</li>
+            <li>Items must be unworn, unwashed, and with original tags attached.</li>
+            <li>Sale items are final sale and cannot be returned unless defective.</li>
+          </ul>
+
+          <h3 style="color: var(--color-text-primary); font-size: 1.3rem; margin-top: 2rem; margin-bottom: 1rem;">How to
+            Exchange</h3>
+          <p style="margin-bottom: 1.5rem;">
+            To initiate an exchange, please contact our support team at <a href="mailto:support@bunnyhop.com"
+              style="color: var(--color-accent-primary);">support@bunnyhop.com</a> with your Order ID and reason for
+            exchange.
+          </p>
+
+          <div style="margin-top: 2rem; text-align: center;">
+            <a href="/" class="btn btn-outline">Continue Shopping</a>
+          </div>
         </div>
-        <div class="md:text-xl text-black">
-            This policy is in place to ensure quality, safety, and fair pricing for all customers. We encourage you to read product descriptions, sizing information, and specifications carefully before ordering. If you receive a damaged or incorrect item, please contact us within 48 hours and we will work to resolve the issue.
-        </div>
+      </div>
+
     </div>
+  </main>
 
   <%- include('./partials/Footer.ejs') %>
-
-</body>
-</html>

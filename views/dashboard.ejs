@@ -1,288 +1,197 @@
 <%- include('./partials/Header.ejs', {hidden: true}) %>
-<% if(typeof error !== 'undefined') { %>
-<div class="flash fixed inset-0 flex justify-center items-center ">
-    <p class="text-red-600 rounded py-1 px-4 h-fit w-fit bg-gray-200 text-lg md:text-2xl lg:text-2xl"><%= error[0] %></p>
-</div>
-<% } %> 
-  
-<% if (success?.length > 0) { %>
-    <div class="bg-green-200 text-green-800 p-2 rounded mb-4"><%= success[0] %></div>
-<% } %>  
 
-<body class="bg-gray-100">
+    <main style="padding: var(--spacing-xl) 0; background-color: var(--color-bg-secondary); min-height: 80vh;">
+        <div class="container">
 
-    <nav class="text-black p-4">
-        <div class="container mx-auto flex justify-between items-center">
-            <a href="#" class="text-2xl font-bold">Admin Panel</a>
-            <a href="/logout" class="text-sm">Logout</a>
-        </div>
-    </nav>
-
-
-    <div class="container mx-auto mt-8">
-        <div class="flex flex-col md:flex-row">
-
-
-            <div class="w-full md:w-1/4 bg-gray-200 p-4 relative z-50">
-                <h2 class="text-lg font-semibold mb-4">Navigation</h2>
-                <ul>
-                    <li><a href="#" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Dashboard</a></li>
-                    <li><a href="/seller/plusproducts" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Products</a></li>
-
-                    <li><a href="/orders/all" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Orders</a></li>
-                    <li><a href="/sales" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Sales</a></li>
-                  
-                </ul>
-            </div>
-
-            <!-- Main Content Area -->
-            <!-- <div class="w-full md:w-3/4 p-4 relative">
-                <h2 class="text-2xl font-semibold mb-4">Upload Clothing Product</h2>
-                <form action="/seller/push" method="POST" enctype="multipart/form-data">
-                    <div class="mb-4">
-                        <label for="title" class="block mb-2">Title</label>
-                        <input type="text" id="title" name="title" class="w-full px-4 py-2 border rounded" required>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="description" class="block mb-2">Description</label>
-                        <textarea id="description" name="description" rows="4" class="w-full px-4 py-2 border rounded" required></textarea>
-                    </div>
-            
-                    <div class="mb-4">
-                        <label for="price" class="block mb-2">Price</label>
-                        <input type="text" id="price" name="price" class="w-full px-4 py-2 border rounded" required>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="gender" class="block mb-2">Gender</label>
-                        <select id="gender" name="gender" class="w-full px-4 py-2 border rounded" required>
-                            <option value="boy">Boy</option>
-                            <option value="girl">Girl</option>
-                            <option value="unisex">Unisex</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="color" class="block mb-2">Color</label>
-                        <input type="text" id="color" placeholder="If multiple colors, use comma between colors" name="color" class="w-full px-4 py-2 border rounded" required>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="category" class="block mb-2">Category</label>
-                        <input type="text" id="category" name="category" class="w-full px-4 py-2 border rounded" required>
-                    </div>
-
-                    <div class="imagcontainer flex flex-col md:flex-row gap-4 w-full mb-2">
-                       
-                        <div class="flex-1">
-                            <div class="block mb-1">Main Image</div>
-                            <label class="cursor-pointer w-full bg-white text-gray-400 hover:text-black transition-all duration-300 rounded-md border p-2 flex flex-col items-center justify-center">
-                                <span class="upload-text">Upload</span>
-                                <input type="file" name="images" accept="image/*" required class="imageInput hidden w-full">
-                                <img class="preview w-full h-40 object-cover mt-2 hidden rounded">
-                            </label>
-                        </div>
-
-                        
-                        <div class="flex-1">
-                            <label class="block mb-1">Image 2</label>
-                            <label class="cursor-pointer w-full bg-white text-gray-400 hover:text-black transition-all duration-300 rounded-md border p-2 flex flex-col items-center justify-center">
-                                <span class="upload-text">Upload</span>
-                                <input type="file" name="images" accept="image/*" required class="imageInput hidden w-full">
-                                <img class="preview w-full h-40 object-cover mt-2 hidden rounded">
-                            </label>
-                        </div>
-
-                        
-                        <div class="flex-1">
-                            <label class="block mb-1">Image 3</label>
-                            <label class="cursor-pointer w-full bg-white text-gray-400 hover:text-black transition-all duration-300 rounded-md border p-2 flex flex-col items-center justify-center">
-                                <span class="upload-text">Upload</span>
-                                <input type="file" name="images" accept="image/*" required class="imageInput hidden w-full">
-                                <img class="preview w-full h-40 object-cover mt-2 hidden rounded">
-                            </label>
-                        </div>
-
-                      
-                        <div class="flex-1">
-                            <label class="block mb-1">Image 4</label>
-                            <label class="cursor-pointer w-full bg-white text-gray-400 hover:text-black transition-all duration-300 rounded-md border p-2 flex flex-col items-center justify-center">
-                                <span class="upload-text">Upload</span>
-                                <input type="file" name="images" accept="image/*" required class="imageInput hidden w-full">
-                                <img class="preview w-full h-40 object-cover mt-2 hidden rounded">
-                            </label>
-                        </div>
-
-                        <div class="flex-1">
-                            <label class="block mb-1">Image 5</label>
-                            <label class="cursor-pointer w-full bg-white text-gray-400 hover:text-black transition-all duration-300 rounded-md border p-2 flex flex-col items-center justify-center">
-                                <span class="upload-text">Upload</span>
-                                <input type="file" name="images" accept="image/*" required class="imageInput hidden w-full">
-                                <img class="preview w-full h-40 object-cover mt-2 hidden rounded">
-                            </label>
-                        </div>
-                    </div>
-                    <input type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" value="Upload">
-                </form>
-
-                <script>
-                    const fileInputs = document.querySelectorAll('.imageInput');
-                    const previews = document.querySelectorAll('.preview');
-                    const uploadTexts = document.querySelectorAll('.upload-text');
-
-                    fileInputs.forEach((input, index) => {
-                        input.addEventListener('change', function() {
-                        const file = input.files[0];
-                        const preview = previews[index];       
-                        const uploadText = uploadTexts[index];
-
-                        if(file){
-                            const reader = new FileReader();
-                            reader.onload = function(e){
-                                preview.src = e.target.result;
-                                preview.classList.remove('hidden');
-                                uploadText.classList.add('hidden');
-                            }
-                            reader.readAsDataURL(file);
-                        } else {
-                            preview.classList.add('hidden');
-                            uploadText.classList.remove('hidden');
-                        }
-                        });
-                    });
-                </script>
-            </div> -->
-
-            <div class="w-full md:w-3/4 p-4 relative">
-
-    <% if (edit) { %>
-        <h2 class="text-2xl font-semibold mb-4">Edit Clothing Product</h2>
-        <form action="/seller/update/<%= product._id %>" method="POST" enctype="multipart/form-data">
-    <% } else { %>
-        <h2 class="text-2xl font-semibold mb-4">Upload Clothing Product</h2>
-        <form action="/seller/push" method="POST" enctype="multipart/form-data">
-    <% } %>
-
-        <!-- TITLE -->
-        <div class="mb-4">
-            <label for="title" class="block mb-2">Title</label>
-            <input type="text" id="title" name="title"
-            value="<%= edit ? product.title : '' %>"
-            class="w-full px-4 py-2 border rounded" required>
-        </div>
-
-        <!-- DESCRIPTION -->
-        <div class="mb-4">
-            <label for="description" class="block mb-2">Description</label>
-            <textarea id="description" name="description" rows="4"
-            class="w-full px-4 py-2 border rounded" required><%= edit ? product.description : '' %></textarea>
-        </div>
-
-        <!-- PRICE -->
-        <div class="mb-4">
-            <label for="price" class="block mb-2">Price</label>
-            <input type="text" id="price" name="price"
-            value="<%= edit ? product.price : '' %>"
-            class="w-full px-4 py-2 border rounded" required>
-        </div>
-
-        <!-- GENDER -->
-        <div class="mb-4">
-            <label for="gender" class="block mb-2">Gender</label>
-            <select id="gender" name="gender" class="w-full px-4 py-2 border rounded" required>
-                <option value="boy" <%= edit && product.gender === 'boy' ? 'selected' : '' %>>Boy</option>
-                <option value="girl" <%= edit && product.gender === 'girl' ? 'selected' : '' %>>Girl</option>
-                <option value="unisex" <%= edit && product.gender === 'unisex' ? 'selected' : '' %>>Unisex</option>
-            </select>
-        </div>
-
-        <!-- COLOR -->
-        <div class="mb-4">
-            <label for="color" class="block mb-2">Color</label>
-            <input type="text" id="color" name="color"
-            value="<%= edit ? product.color : '' %>"
-            placeholder="If multiple colors, use comma between colors"
-            class="w-full px-4 py-2 border rounded" required>
-        </div>
-
-        <!-- CATEGORY -->
-        <div class="mb-4">
-            <label for="category" class="block mb-2">Category</label>
-            <input type="text" id="category" name="category"
-            value="<%= edit ? product.category : '' %>"
-            class="w-full px-4 py-2 border rounded" required>
-        </div>
-
-        <!-- IMAGES -->
-        <div class="imagcontainer flex flex-col md:flex-row gap-4 w-full mb-2">
-    <% for (let i = 0; i < 5; i++) { %>
-        <div class="flex-1">
-            <label class="block mb-1">Image <%= i+1 %></label>
-
-            <label class="cursor-pointer w-full bg-white text-gray-400 hover:text-black transition-all duration-300 rounded-md border p-2 flex flex-col items-center justify-center">
-
-                <span class="upload-text <%= edit && product.images && product.images[i] ? 'hidden' : '' %>">Upload</span>
-
-                <input type="file" name="images" accept="image/*"
-                class="imageInput hidden w-full" <%= edit ? '' : 'required' %>>
-
-                <!-- OLD IMAGE PREVIEW IF EDIT MODE -->
-                <% if (edit && product.images && product.images[i]) { %>
-                    <img src="<%= product.images[i] %>" class="preview w-full h-40 object-cover mt-2 rounded">
-                <% } else { %>
-                    <img class="preview w-full h-40 object-cover mt-2 hidden rounded">
+            <!-- Flash Messages -->
+            <% if(typeof error !=='undefined' && error.length> 0) { %>
+                <div
+                    style="background: #fee2e2; color: #dc2626; padding: 1rem; border-radius: var(--border-radius-md); margin-bottom: 2rem; text-align: center;">
+                    <%= error[0] %>
+                </div>
                 <% } %>
+                    <% if (typeof success !=='undefined' && success.length> 0) { %>
+                        <div
+                            style="background: #dcfce7; color: #166534; padding: 1rem; border-radius: var(--border-radius-md); margin-bottom: 2rem; text-align: center;">
+                            <%= success[0] %>
+                        </div>
+                        <% } %>
 
-            </label>
+                            <div style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;">
+
+                                <!-- Sidebar -->
+                                <aside>
+                                    <%- include('./partials/SellerSidebar.ejs') %>
+                                </aside>
+
+                                <!-- Main Content -->
+                                <section
+                                    style="background: white; padding: 2.5rem; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm);">
+                                    <div
+                                        style="margin-bottom: 2rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">
+                                        <% if (edit) { %>
+                                            <h2 style="font-size: 1.5rem;">Edit Product</h2>
+                                            <% } else { %>
+                                                <h2 style="font-size: 1.5rem;">Add New Product</h2>
+                                                <% } %>
+                                    </div>
+
+                                    <form action="<%= edit ? '/seller/update/' + product._id : '/seller/push' %>"
+                                        method="POST" enctype="multipart/form-data">
+
+                                        <div
+                                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                            <div>
+                                                <label for="title"
+                                                    style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Product
+                                                    Title</label>
+                                                <input type="text" id="title" name="title"
+                                                    value="<%= edit ? product.title : '' %>" required
+                                                    style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px;">
+                                            </div>
+                                            <div>
+                                                <label for="price"
+                                                    style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Price
+                                                    (PKR)</label>
+                                                <input type="number" id="price" name="price"
+                                                    value="<%= edit ? product.price : '' %>" required
+                                                    style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px;">
+                                            </div>
+                                        </div>
+
+                                        <div style="margin-bottom: 1.5rem;">
+                                            <label for="description"
+                                                style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Description</label>
+                                            <textarea id="description" name="description" rows="4" required
+                                                style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;"><%= edit ? product.description : '' %></textarea>
+                                        </div>
+
+                                        <div
+                                            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                            <div>
+                                                <label for="gender"
+                                                    style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Gender</label>
+                                                <select id="gender" name="gender" required
+                                                    style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; background: white;">
+                                                    <option value="boy" <%=edit && product.gender==='boy' ? 'selected'
+                                                        : '' %>>Boy</option>
+                                                    <option value="girl" <%=edit && product.gender==='girl' ? 'selected'
+                                                        : '' %>>Girl</option>
+                                                    <option value="unisex" <%=edit && product.gender==='unisex'
+                                                        ? 'selected' : '' %>>Unisex</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label for="category"
+                                                    style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category</label>
+                                                <select id="category" name="category" required
+                                                    style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px; background: white;">
+                                                    <option value="">Select Category</option>
+                                                    <% if(typeof categories !=='undefined' && categories.length> 0) { %>
+                                                        <% for(let i=0; i < categories.length; i++) { %>
+                                                            <option value="<%= categories[i].name %>" <%=edit &&
+                                                                product.category &&
+                                                                product.category.includes(categories[i].name)
+                                                                ? 'selected' : '' %>><%= categories[i].name %>
+                                                            </option>
+                                                            <% } %>
+                                                                <% } %>
+                                                                    <option value="Rompers">Rompers (Legacy)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label for="color"
+                                                    style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Colors</label>
+                                                <input type="text" id="color" name="color"
+                                                    value="<%= edit ? product.color : '' %>" placeholder="white, blue"
+                                                    required
+                                                    style="width: 100%; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: 4px;">
+                                            </div>
+                                        </div>
+
+                                        <!-- Image Upload -->
+                                        <div style="margin-bottom: 2rem;">
+                                            <label
+                                                style="display: block; margin-bottom: 1rem; font-weight: 500;">Product
+                                                Images (5 Required)</label>
+                                            <div
+                                                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 1rem;">
+                                                <% for (let i=0; i < 5; i++) { %>
+                                                    <label style="cursor: pointer; display: block;">
+                                                        <div class="image-box"
+                                                            style="width: 100%; height: 100px; border: 2px dashed var(--color-border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #fafafa;">
+
+                                                            <span
+                                                                class="upload-text <%= edit && product.images && product.images[i] ? 'hidden' : '' %>"
+                                                                style="color: var(--color-text-secondary); font-size: 0.8rem;">Upload</span>
+
+                                                            <input type="file" name="images" accept="image/*"
+                                                                class="imageInput hidden" <%=edit ? '' : (i===0
+                                                                ? 'required' : '' ) %>>
+                                                            <!-- Only require first one strictly, usually back-end checks count -->
+
+                                                            <% if (edit && product.images && product.images[i]) { %>
+                                                                <img src="<%= product.images[i] %>" class="preview"
+                                                                    style="width: 100%; height: 100%; object-fit: cover;">
+                                                                <% } else { %>
+                                                                    <img class="preview hidden"
+                                                                        style="width: 100%; height: 100%; object-fit: cover;">
+                                                                    <% } %>
+                                                        </div>
+                                                        <p
+                                                            style="text-align: center; font-size: 0.8rem; margin-top: 5px; color: var(--color-text-secondary);">
+                                                            Image <%= i+1 %>
+                                                        </p>
+                                                    </label>
+                                                    <% } %>
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem;">
+                                            <%= edit ? 'Update Product' : 'Create Product' %>
+                                        </button>
+
+                                    </form>
+                                </section>
+
+                            </div>
         </div>
-    <% } %>
-</div>
+    </main>
 
+    <%- include('./partials/Footer.ejs') %>
 
+        <script>
+            const fileInputs = document.querySelectorAll('.imageInput');
+            const previews = document.querySelectorAll('.preview');
+            const uploadTexts = document.querySelectorAll('.upload-text');
 
+            fileInputs.forEach((input, index) => {
+                input.addEventListener('change', function () {
+                    const file = input.files[0];
+                    const preview = previews[index];
+                    const uploadText = uploadTexts[index];
 
-        <!-- SUBMIT BUTTON -->
-        <input type="submit"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-        value="<%= edit ? 'Update Product' : 'Upload' %>">
-
-    </form>
-
-
-    <!-- IMAGE PREVIEW JS -->
-    <script>
-        const fileInputs = document.querySelectorAll('.imageInput');
-        const previews = document.querySelectorAll('.preview');
-        const uploadTexts = document.querySelectorAll('.upload-text');
-
-        fileInputs.forEach((input, index) => {
-            input.addEventListener('change', function() {
-                const file = input.files[0];
-                const preview = previews[index];
-                const uploadText = uploadTexts[index];
-
-                if(file){
-                    const reader = new FileReader();
-                    reader.onload = function(e){
-                        preview.src = e.target.result;
-                        preview.classList.remove('hidden');
-                        uploadText.classList.add('hidden');
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            preview.src = e.target.result;
+                            preview.classList.remove('hidden');
+                            if (uploadText) uploadText.classList.add('hidden');
+                        }
+                        reader.readAsDataURL(file);
                     }
-                    reader.readAsDataURL(file);
-                } else {
-                    preview.classList.add('hidden');
-                    uploadText.classList.remove('hidden');
-                }
+                });
             });
-        });
-    </script>
-</div>
+        </script>
 
-        </div>
-    </div>
-</body>
+        <style>
+            .hidden {
+                display: none !important;
+            }
 
-</html>
-<%- include('./partials/Footer.ejs') %>
-<script defer src="/_vercel/insights/script.js"></script>
+            @media(max-width: 768px) {
+                .container>div {
+                    grid-template-columns: 1fr !important;
+                }
+            }
+        </style>

@@ -1,29 +1,43 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terms of Services</title>
-</head>
+<%- include('./partials/Header.ejs') %>
 
-<body>
- <%- include('./partials/Header.ejs') %>
+  <main style="padding: var(--spacing-xl) 0; min-height: 80vh; background-color: var(--color-bg-primary);">
+    <div class="container" style="max-width: 800px;">
 
-  <div class="flex justify-center items-center flex-col gap-4 px-10 py-6 min-h-screen">
-    <h1 class="text-3xl text-yellow-400">Terms of Services</h1>
-    <div class="md:text-xl text-black">
-        By placing an order, you agree to our Terms of Service. We deliver best-quality clothes made with premium materials. Please review your order carefully before confirming, as we maintain a no-refund, no-exchange, and no-return policy on all purchases.
+      <div
+        style="background: white; padding: 3rem; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md);">
+        <h1
+          style="font-size: 2.5rem; font-family: var(--font-heading); margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
+          Terms of Service</h1>
+
+        <div class="prose" style="font-size: 1.1rem; line-height: 1.8; color: var(--color-text-secondary);">
+          <p style="margin-bottom: 1.5rem;">
+            Welcome to Bunny Hop Shop. By accessing or using our website, you agree to comply with and be bound by the
+            following terms and conditions. Please read them carefully before making a purchase.
+          </p>
+          <h3 style="color: var(--color-text-primary); font-size: 1.3rem; margin-top: 2rem; margin-bottom: 1rem;">1. Use
+            of Service</h3>
+          <p style="margin-bottom: 1.5rem;">
+            Our services are available for individuals who can form legally binding contracts under applicable law. You
+            may not use our products for any illegal or unauthorized purpose.
+          </p>
+          <h3 style="color: var(--color-text-primary); font-size: 1.3rem; margin-top: 2rem; margin-bottom: 1rem;">2.
+            Product Information</h3>
+          <p style="margin-bottom: 1.5rem;">
+            We make every effort to display as accurately as possible the colors, features, specifications, and details
+            of the products available on the Site. However, we do not guarantee that the colors, features,
+            specifications, and details of the products will be accurate, complete, reliable, current, or free of other
+            errors.
+          </p>
+          <h3 style="color: var(--color-text-primary); font-size: 1.3rem; margin-top: 2rem; margin-bottom: 1rem;">3.
+            Pricing and Availability</h3>
+          <p style="margin-bottom: 1.5rem;">
+            All prices are subject to change without notice. We reserve the right to discontinue any product at any
+            time.
+          </p>
+        </div>
+      </div>
+
     </div>
-    <div class="md:text-xl text-black">
-      We guarantee top-tier standards and do our best to ensure complete customer satisfaction with our clothes. Cash on Delivery(COD) is available for eligible locations. Free delivery is available on orders above 3000.
-    </div>
-    <div class="md:text-xl text-black">
-      By completing your purchase, you acknowledge and accept these conditions.
-    </div>
-  </div>
+  </main>
 
   <%- include('./partials/Footer.ejs') %>
-
-</body>
-</html>
-

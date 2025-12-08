@@ -1,163 +1,179 @@
 <%- include('./partials/Header.ejs', {hidden: true}) %>
-<body class="bg-gray-100">
-    <!-- Navbar -->
-    <nav class="bg-[#FFFFF0] text-black p-4">
-        <div class="container mx-auto flex justify-between items-center">
-            <a href="#" class="text-2xl font-bold">Admin Panel</a>
-            <a href="/logout" class="text-sm">Logout</a>
-        </div>
-    </nav>
 
-    <!-- Main Content -->
-    <div class="container mx-auto mt-8">
-        <div class="flex flex-col md:flex-row">
+  <main style="padding: var(--spacing-xl) 0; background-color: var(--color-bg-secondary); min-height: 80vh;">
+    <div class="container">
 
-            <!-- Sidebar -->
-            <div class="w-full md:w-1/4 bg-gray-200 p-4">
-                <h2 class="text-lg font-semibold mb-4">Navigation</h2>
-                <ul>
-                    <li><a href="/seller/dashboard" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Dashboard</a></li>
-                    <li><a href="/seller/plusproducts" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Products</a></li>
-                    <li><a href="/orders/all" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Orders</a></li>
-                    <li><a href="/sales" class="block py-2 px-4 bg-gray-300 mb-2 rounded">Sales</a></li>
-                </ul>
-            </div>
+      <div style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;">
 
-            <!-- Main Content Area -->
-            <div class="w-full md:w-3/4 p-4 relative">
-                <h2 class="text-2xl font-semibold mb-4">Your Products</h2>
-                <div class="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
-                    <% products.forEach((fit) => { %>
-                    <div class="group relative flex flex-col">
-                      <div    class="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md bg-gray-200 lg:aspect-none group-hover:opacity-75 lg:h-80">
-                        <img onclick="window.location.href='/products/<%=fit._id%>'" src="<%= fit.mainImage %>" alt="Product Image" class="h-full w-full object-cover object-center lg:h-full lg:w-full">
-                      </div>
-                      <div class="mt-4 flex justify-between">
-                        <div>
-                          <h3 class="text-sm text-gray-700">
-                            <a href="/products/<%= fit.id %>">
-                              <span aria-hidden="true" class="absolute inset-0"></span>
-                              <%= fit.title %>
-                            </a>
-                          </h3>
-                          <% if (fit.color && Array.isArray(fit.color)) { %>
-                            <% for (let j = 0; j < fit.color.length; j++) { %>
-                              <span class="color-dot mt-4 inline-block h-4 w-4 rounded-full" style="background-color: <%= fit.color[j] %>; margin-right: 4px;"></span>
-                            <% } %>
-                          <% } %>
-                        </div>
-                        <p class="text-sm font-medium text-gray-900">PKR <%= fit.price %></p>
-                      </div>
-                      <div class="mt-auto flex gap-2 items-center sm:space-y-0 sm:space-x-2 sm:flex-row">
-                        <% if(fit.isApproved) { %>
-                          <button
-                            type="button"
-                            class="relative z-10 w-1/2 bg-green-400 hover:bg-green-500 text-white py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            <a href="/seller/edit/<%= fit._id %>">Edit</a>
+        <!-- Sidebar -->
+        <aside>
+          <%- include('./partials/SellerSidebar.ejs') %>
+        </aside>
 
-                          </button>
-                          <button
-                            type="button"
-                            data-id="<%= fit._id %>"
-                            class="relative z-10 w-1/2 prod-delete bg-red-500 text-white py-2 px-4 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            Delete
-                          </button>
-                        <% } else { %>
-                          <button
-                            type="button"
-                            class="relative z-10 w-full mt-5 bg-red-500 text-white py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            Pending
-                          </button>
-                        <% } %>
-                      </div>
+        <!-- Main Content -->
+        <section
+          style="background: white; padding: 2.5rem; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm);">
+          <div
+            style="margin-bottom: 2rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-size: 1.5rem;">My Products</h2>
+            <a href="/seller/dashboard" class="btn btn-primary" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+              <i class="ri-add-line"></i> Add New
+            </a>
+          </div>
 
-                    </div>
-                    <% }) %>
+          <% if(products && products.length> 0) { %>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem;">
+              <% products.forEach((fit)=> { %>
+                <div class="product-card-admin"
+                  style="border: 1px solid var(--color-border); border-radius: var(--border-radius-md); overflow: hidden; position: relative;">
+                  <div style="height: 200px; overflow: hidden; background: #f9f9f9;">
+                    <img src="<%= fit.mainImage %>" alt="<%= fit.title %>"
+                      style="width: 100%; height: 100%; object-fit: cover;">
                   </div>
+                  <div style="padding: 1rem;">
+                    <h3
+                      style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
+                      <%= fit.title %>
+                    </h3>
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                      <span style="font-size: 0.9rem; font-weight: 500;">PKR <%= fit.price %></span>
+                      <span style="font-size: 0.8rem; color: var(--color-text-secondary);">
+                        <%= fit.salesCount || 0 %> Sold
+                      </span>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem;">
+                      <button data-id="<%= fit._id %>"
+                        class="btn btn-outline prod-feature <%= fit.tags && fit.tags.includes('featured') ? 'active' : '' %>"
+                        style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-color: #FFD700; color: <%= fit.tags && fit.tags.includes('featured') ? 'white' : '#DAA520' %>; background: <%= fit.tags && fit.tags.includes('featured') ? '#FFD700' : 'transparent' %>;">
+                        <i
+                          class="<%= fit.tags && fit.tags.includes('featured') ? 'ri-star-fill' : 'ri-star-line' %>"></i>
+                        <%= fit.tags && fit.tags.includes('featured') ? 'Pinned' : 'Pin' %>
+                      </button>
+                      <a href="/seller/edit/<%= fit._id %>" class="btn btn-outline"
+                        style="flex: 1; padding: 0.4rem; font-size: 0.8rem; text-align: center;">Edit</a>
+                      <button data-id="<%= fit._id %>" class="btn btn-primary prod-delete"
+                        style="flex: 1; padding: 0.4rem; font-size: 0.8rem; background: #dc2626; border-color: #dc2626;">Delete</button>
+                    </div>
+                  </div>
+
+                  <% if(!fit.isApproved) { %>
+                    <div
+                      style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;">
+                      Pending Approval</div>
+                    <% } %>
+                </div>
+                <% }) %>
             </div>
+            <% } else { %>
+              <div style="text-align: center; padding: 3rem; color: var(--color-text-secondary);">
+                <i class="ri-inbox-2-line" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                <p>No products found. Start by adding one!</p>
+              </div>
+              <% } %>
 
-        </div>
+        </section>
 
-
+      </div>
     </div>
-            <div id="confirmModal" class="absolute h-full hidden w-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 f flex inset-0  items-center justify-center bg-black/40">
-  <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-    <h3 class="text-lg font-semibold mb-2">Delete product?</h3>
-    <p class="text-sm text-gray-600 mb-4">
-      Are you sure you want to delete this product? This action cannot be undone.
-    </p>
-    <div class="flex justify-end gap-3">
-      <button id="cancelDelete"
-              class="px-4 py-2 rounded-md bg-gray-200 text-gray-800 text-sm">
-        Cancel
-      </button>
-      <button id="confirmDelete"
-              class="px-4 py-2 rounded-md bg-red-500 text-white text-sm">
-        Yes, delete
-      </button>
+  </main>
+
+  <!-- Delete Modal -->
+  <div id="confirmModal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div
+      style="background: white; padding: 2rem; border-radius: var(--border-radius-md); width: 90%; max-width: 400px; box-shadow: var(--shadow-lg);">
+      <h3 style="margin-bottom: 1rem; font-size: 1.2rem;">Delete Product?</h3>
+      <p style="color: var(--color-text-secondary); margin-bottom: 1.5rem;">Are you sure you want to delete this
+        product? This action cannot be undone.</p>
+      <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+        <button id="cancelDelete" class="btn btn-outline" style="padding: 0.5rem 1rem;">Cancel</button>
+        <button id="confirmDelete" class="btn btn-primary"
+          style="background: #dc2626; border-color: #dc2626; padding: 0.5rem 1rem;">Yes, Delete</button>
+      </div>
     </div>
   </div>
-</div>
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const deleteButtons = document.querySelectorAll('.prod-delete');
 
-    const modal = document.getElementById('confirmModal');
-    const cancelBtn = document.getElementById('cancelDelete');
-    const confirmBtn = document.getElementById('confirmDelete');
+  <%- include('./partials/Footer.ejs') %>
 
-    let pendingDelete = { id: null, card: null };
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const deleteButtons = document.querySelectorAll('.prod-delete');
+        const modal = document.getElementById('confirmModal');
+        const cancelBtn = document.getElementById('cancelDelete');
+        const confirmBtn = document.getElementById('confirmDelete');
+        let pendingDelete = { id: null, card: null };
 
-    deleteButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        const card = btn.closest('.group');
-
-        pendingDelete = { id, card };
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-      });
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      pendingDelete = { id: null, card: null };
-    });
-
-    confirmBtn.addEventListener('click', async () => {
-      if (!pendingDelete.id) return;
-
-      try {
-        const res = await fetch(`/seller/products/${pendingDelete.id}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
+        deleteButtons.forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const id = btn.dataset.id;
+            const card = btn.closest('.product-card-admin');
+            pendingDelete = { id, card };
+            modal.style.display = 'flex';
+          });
         });
 
-        if (!res.ok) throw new Error('Delete failed');
+        cancelBtn.addEventListener('click', () => {
+          modal.style.display = 'none';
+          pendingDelete = { id: null, card: null };
+        });
 
-        pendingDelete.card.remove();
-      } catch (err) {
-        alert('Error deleting product. Try again.');
-        console.error(err);
-      } finally {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        pendingDelete = { id: null, card: null };
+        confirmBtn.addEventListener('click', async () => {
+          if (!pendingDelete.id) return;
+          try {
+            const res = await fetch(`/seller/products/${pendingDelete.id}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error('Delete failed');
+            if (pendingDelete.card) pendingDelete.card.remove();
+          } catch (err) {
+            alert('Error deleting product');
+          } finally {
+            modal.style.display = 'none';
+            pendingDelete = { id: null, card: null };
+          }
+        });
+      });
+
+      // Pin Feature Logic
+      const featureButtons = document.querySelectorAll('.prod-feature');
+      featureButtons.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = btn.dataset.id;
+          try {
+            const res = await fetch(`/seller/feature/${id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+              if (data.isFeatured) {
+                btn.style.background = '#FFD700';
+                btn.style.color = 'white';
+                btn.innerHTML = '<i class="ri-star-fill"></i> Pinned';
+              } else {
+                btn.style.background = 'transparent';
+                btn.style.color = '#DAA520';
+                btn.innerHTML = '<i class="ri-star-line"></i> Pin';
+              }
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Error updating status');
+          }
+        });
+      });
+
+      });
+    </script>
+
+    <style>
+      @media(max-width: 768px) {
+        .container>div {
+          grid-template-columns: 1fr !important;
+        }
       }
-    });
-  });
-</script>
-
-
-</body>
-
-
-</html>
-
-
-</html>
-
-  
-<%- include('./partials/Footer.ejs') %>
+    </style>
