@@ -16,10 +16,11 @@ const { default: storage } = require('../cloudinary');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const saleModel = require('../models/sale-model');
+const categoryModel = require('../models/category-model');
 const sendEmail = require('../utils/sendEmail');
 const upload = multer({ storage });
-const {getDiscountForProduct} = require("../utils/discount")
-const {orderEmailTemplate} = require("../helper/orderEmailTemplate");
+const { getDiscountForProduct } = require("../utils/discount")
+const { orderEmailTemplate } = require("../helper/orderEmailTemplate");
 const addToCart = require('../middlewares/addto-cart');
 const mongoose = require('mongoose');
 
@@ -39,7 +40,7 @@ const mongoose = require('mongoose');
 //     });
 
 //     // if (!req.user || req.user === 'unsigned') {
-        
+
 //     //     return res.render('index', {
 //     //         user: 'unsigned',
 //     //         feat,
@@ -64,325 +65,336 @@ const mongoose = require('mongoose');
 // });
 
 router.get('/', isLoggedIn, addToCart, async function (req, res) {
+  try {
     let error = req.flash('error');
 
-    
     const now = new Date();
     const activeSales = await saleModel.find({
-        startDate: { $lte: now },
-        endDate: { $gte: now }
+      startDate: { $lte: now },
+      endDate: { $gte: now }
     });
 
-
-
     let featProducts = await productsModel.find({ tags: 'featured' });
-
-
     let trendyProducts = await productsModel.find({ tags: 'trend' });
+    let categories = await categoryModel.find({});
 
-   
     function applySale(products) {
-        return products.map(p => {
-            const applicable = activeSales.filter(s =>
-                s.productIds.includes(p._id.toString())
-            );
+      return products.map(p => {
+        let discount = 0;
+        let finalPrice = p.price;
 
-            let discountPercent = 0;
-            let discountPrice = 0
-            if (applicable.length > 0) {
-                const best = applicable.reduce((a, b) =>
-                    a.percentage > b.percentage ? a : b
-                );
-                discountPercent = best.percentage;
-       discountPrice = Math.round(p.price - (p.price * discountPercent / 100));
-            }
-
-            return {
-                ...p.toObject(),
-                discountPercent,
-                discountPrice
-            };
+        // Check active sales
+        activeSales.forEach(sale => {
+          if (sale.productIds && sale.productIds.includes(p._id.toString())) {
+            discount = Math.max(discount, sale.percentage);
+          }
         });
+
+        // Apply discount
+        if (discount > 0) {
+          finalPrice = p.price - (p.price * (discount / 100));
+        }
+
+        // Attach temporary fields for display (don't save to DB)
+        return {
+          ...p.toObject(),
+          discountPercent: discount,
+          finalPrice: Math.ceil(finalPrice)
+        };
+      });
     }
 
     let feat = applySale(featProducts);
     let trendy = applySale(trendyProducts);
 
     res.render('index', {
-        user: res.locals.user,
-        feat,
-        trendy,
-        error,
-        req,
-        cart: res.locals.cart
+      user: res.locals.user,
+      feat,
+      trendy,
+      categories,
+      error: error,
+      req: req,
+      cart: res.locals.cart
     });
+  } catch (err) {
+    console.error("Homepage Error:", err);
+    res.render('index', {
+      user: res.locals.user || null,
+      feat: [],
+      trendy: [],
+      categories: [],
+      error: ["Something went wrong loading the homepage."],
+      req: req,
+      cart: res.locals.cart || []
+    });
+  }
 });
 
 
 router.get('/access', redirectIfLogin, function (req, res) {
-    let registerError = req.flash('registerError')
-    let loginError = req.flash('loginError')
-    let sellerError = req.flash('sellerError')
-    res.render('access', { registerError, loginError, sellerError })
+  let registerError = req.flash('registerError')
+  let loginError = req.flash('loginError')
+  let sellerError = req.flash('sellerError')
+  res.render('access', { registerError, loginError, sellerError })
 })
 
 router.get('/forgot-password', (req, res) => {
-    res.render('forgot-password', {
-        error: req.flash('forgotError'),
-        message: req.flash('forgotMessage')
-    });
+  res.render('forgot-password', {
+    error: req.flash('forgotError'),
+    message: req.flash('forgotMessage')
+  });
 });
 
 
 router.post('/register', async (req, res) => {
-    let { fullName, email, username, password } = req.body;
+  let { fullName, email, username, password } = req.body;
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        req.flash('registerError', 'Invalid email format');
-        return res.redirect('/access');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    req.flash('registerError', 'Invalid email format');
+    return res.redirect('/access');
+  }
+
+  let isEmail = await userModel.findOne({ email });
+  if (isEmail) {
+    req.flash('registerError', 'User already exists');
+    return res.redirect('/access');
+  }
+  const isUsername = await userModel.findOne({ username })
+  if (isUsername) {
+    req.flash('registerError', 'Username already exists');
+    return res.redirect('/access');
+  }
+
+  try {
+    if (!process.env.TOKEN) {
+      req.flash('registerError', 'Token missing');
+      return res.send('bring token');
     }
 
-    let isEmail = await userModel.findOne({ email });
-    if (isEmail) {
-        req.flash('registerError', 'User already exists');
-        return res.redirect('/access');
-    }
-    const isUsername =  await userModel.findOne({username})
-    if (isUsername) {
-        req.flash('registerError', 'Username already exists');
-        return res.redirect('/access');
-    }
+    bcrypt.genSalt(10, (err, salt) => {
+      bcrypt.hash(password, salt, async (err, hash) => {
+        try {
+          let user = await userModel.create({
+            fullName,
+            email,
+            username,
+            password: hash,
+          });
 
-    try {
-        if (!process.env.TOKEN) {
-            req.flash('registerError', 'Token missing');
-            return res.send('bring token');
+          let token = jwt.sign(
+            { username, userId: user._id, isSeller: user.isSeller },
+            process.env.TOKEN
+          );
+
+          res.cookie('token', token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "None",
+            maxAge: 30 * 24 * 60 * 60 * 1000
+          });
+
+          res.redirect('/');
+        } catch (error) {
+          req.flash('registerError', 'cannot create user');
+          console.log(error);
+          res.redirect('/access');
         }
-
-        bcrypt.genSalt(10, (err, salt) => {
-            bcrypt.hash(password, salt, async (err, hash) => {
-                try {
-                    let user = await userModel.create({
-                        fullName,
-                        email,
-                        username,
-                        password: hash,
-                    });
-
-                    let token = jwt.sign(
-                        { username, userId: user._id, isSeller: user.isSeller },
-                        process.env.TOKEN
-                    );
-                    
-res.cookie('token', token, {
-  httpOnly: true,
-  secure: true,
-  sameSite: "None",
-  maxAge: 30 * 24 * 60 * 60 * 1000
-});
-
-                    res.redirect('/');
-                } catch (error) {
-                    req.flash('registerError', 'cannot create user');
-                    console.log(error);
-                    res.redirect('/access');
-                }
-            });
-        });
-    } catch (error) {
-        req.flash('registerError', 'something went wrong');
-        res.redirect('/access');
-    }
+      });
+    });
+  } catch (error) {
+    req.flash('registerError', 'something went wrong');
+    res.redirect('/access');
+  }
 });
 
 
 router.post('/forgot-password', async (req, res) => {
-    const { email } = req.body;
+  const { email } = req.body;
 
-    let user = await userModel.findOne({ email });
-    if (!user) {
-        req.flash('registerError', 'Email not found');
-        return res.redirect('/access');
+  let user = await userModel.findOne({ email });
+  if (!user) {
+    req.flash('registerError', 'Email not found');
+    return res.redirect('/access');
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+
+  user.resetToken = token;
+  user.resetTokenExpiry = Date.now() + 1000 * 60 * 15; // 15 minutes
+  await user.save();
+
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.EMAIL_PASS
     }
+  });
 
-    const token = crypto.randomBytes(32).toString('hex');
-
-    user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 1000 * 60 * 15; // 15 minutes
-    await user.save();
-
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
-
-
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL,
-            pass: process.env.EMAIL_PASS
-        }
-    });
-
-    await transporter.sendMail({
-        from: 'Bunny Hop Shop',
-        to: email,
-        subject: 'Reset Password',
-        html: `
+  await transporter.sendMail({
+    from: 'Bunny Hop Shop',
+    to: email,
+    subject: 'Reset Password',
+    html: `
             <p>Click the link below to reset your password:</p>
             <a href="${resetLink}">Reset Password</a>
         `
-    });
+  });
 
-    req.flash('registerError', 'Reset link sent to your email');
-    res.redirect('/access');
+  req.flash('registerError', 'Reset link sent to your email');
+  res.redirect('/access');
 });
 
 
 router.get('/reset-password/:token', async (req, res) => {
-    const token = req.params.token;
+  const token = req.params.token;
 
-    const user = await userModel.findOne({
-        resetToken: token,
-        resetTokenExpiry: { $gt: Date.now() }
-    });
+  const user = await userModel.findOne({
+    resetToken: token,
+    resetTokenExpiry: { $gt: Date.now() }
+  });
 
-    if (!user) {
-        return res.send("Invalid or expired token");
-    }
+  if (!user) {
+    return res.send("Invalid or expired token");
+  }
 
-    res.render('reset-password', { token, error: null });
+  res.render('reset-password', { token, error: null });
 });
 
 router.post('/reset-password', async (req, res) => {
-    const { password, token } = req.body;
+  const { password, token } = req.body;
 
-    const user = await userModel.findOne({
-        resetToken: token,
-        resetTokenExpiry: { $gt: Date.now() }
-    });
+  const user = await userModel.findOne({
+    resetToken: token,
+    resetTokenExpiry: { $gt: Date.now() }
+  });
 
-    if (!user) {
-        return res.send("Invalid or expired token");
+  if (!user) {
+    return res.send("Invalid or expired token");
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hash = await bcrypt.hash(password, salt);
+
+  user.password = hash;
+  user.resetToken = undefined;
+  user.resetTokenExpiry = undefined;
+
+  await user.save();
+
+  req.flash('registerError', 'Password reset successful. You can login now.');
+  res.redirect('/access');
+});
+
+
+router.post('/login', async (req, res) => {
+  let { email, password } = req.body
+  let user = await userModel.findOne({ email })
+  const isMobile = /mobile/i.test(req.headers['user-agent']);
+  console.log(isMobile)
+  if (!user) {
+    req.flash('loginError', 'please register first');
+    return res.redirect(isMobile ? '/login' : '/access');
+  }
+
+
+  try {
+    if (!process.env.TOKEN) {
+      req.flash('registerError', 'Token missing')
+      return res.send('bring token')
     }
-
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-
-    user.password = hash;
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
-
-    await user.save();
-
-    req.flash('registerError', 'Password reset successful. You can login now.');
-    res.redirect('/access');
-});
-
-
-  router.post('/login', async (req, res) => {
-      let { email, password } = req.body
-      let user = await userModel.findOne({ email })
-      const isMobile = /mobile/i.test(req.headers['user-agent']);
-      console.log(isMobile)
-if (!user) {
-  req.flash('loginError', 'please register first');
-  return res.redirect(isMobile ? '/login' : '/access');
-}
-
-
-      try {
-          if (!process.env.TOKEN) {
-              req.flash('registerError', 'Token missing')
-              return res.send('bring token')
-          }
-          bcrypt.compare(password, user.password, (err, result) => {
-if (!result) {
-  console.log(result)
-  req.flash('loginError', "Invalid Credentials!");
-  return res.redirect(isMobile ? '/login' : '/access');
-}
-
-              if (result) {
-                  let token = jwt.sign({ username: user.username, userId: user._id, isSeller: user.isSeller}, process.env.TOKEN)
-res.cookie('token', token, {
-  httpOnly: true,
-  secure: true,
-  sameSite: "None",
-  maxAge: 30 * 24 * 60 * 60 * 1000
-});
-
-                  res.redirect('/')
-              }
-          })
-      } catch (error) {
-req.flash('loginError', error.message);
-return res.redirect(isMobile ? '/login' : '/access');
+    bcrypt.compare(password, user.password, (err, result) => {
+      if (!result) {
+        console.log(result)
+        req.flash('loginError', "Invalid Credentials!");
+        return res.redirect(isMobile ? '/login' : '/access');
       }
-  })
+
+      if (result) {
+        let token = jwt.sign({ username: user.username, userId: user._id, isSeller: user.isSeller }, process.env.TOKEN)
+        res.cookie('token', token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "None",
+          maxAge: 30 * 24 * 60 * 60 * 1000
+        });
+
+        res.redirect('/')
+      }
+    })
+  } catch (error) {
+    req.flash('loginError', error.message);
+    return res.redirect(isMobile ? '/login' : '/access');
+  }
+})
 
 router.get('/logout', (req, res) => {
-    res.clearCookie('token')
-    req.session.seller = false;
-    // req.user = 'unsigned'
-    res.redirect('/')
+  res.clearCookie('token')
+  req.session.seller = false;
+  // req.user = 'unsigned'
+  res.redirect('/')
 })
 router.get('/products', (req, res) => {
-    res.render('product', { user: 'unsigned' })
+  res.render('product', { user: 'unsigned' })
 })
 
 router.get('/products/:id', isLoggedIn, addToCart, async (req, res) => {
-    let product = await productsModel.findOne({ _id: req.params.id });
+  let product = await productsModel.findOne({ _id: req.params.id });
 
-    if (!product.isApproved) {
-        req.flash('error', 'product not approved yet');
-        return res.redirect('/');
-    }
-    const now = new Date()
-    const activeSales = await saleModel.find({
-        startDate: { $lte: now },
-        endDate: { $gte: now }
-    });
+  if (!product.isApproved) {
+    req.flash('error', 'product not approved yet');
+    return res.redirect('/');
+  }
+  const now = new Date()
+  const activeSales = await saleModel.find({
+    startDate: { $lte: now },
+    endDate: { $gte: now }
+  });
 
-    const applicable = activeSales.filter(s =>
-        s.productIds.includes(product._id.toString())
+  const applicable = activeSales.filter(s =>
+    s.productIds.includes(product._id.toString())
+  );
+
+  let discountPercent = 0;
+  let discountName = null;
+  let discountEnd = null;
+
+  if (applicable.length > 0) {
+
+    const bestSale = applicable.reduce((max, current) =>
+      current.percentage > max.percentage ? current : max
     );
 
-    let discountPercent = 0;
-    let discountName = null;
-    let discountEnd = null;
+    discountPercent = bestSale.percentage;
+    discountName = bestSale.title;
+    discountEnd = bestSale.endDate;
+  }
 
-    if (applicable.length > 0) {
+  let discountedPrice = null;
+  if (discountPercent > 0) {
+    discountedPrice = product.price - (product.price * discountPercent / 100);
+  }
 
-        const bestSale = applicable.reduce((max, current) => 
-            current.percentage > max.percentage ? current : max
-        );
+  // if (!req.user || req.user === 'unsigned') {
+  //     return res.render('product', {
+  //         product,
+  //         user: 'unsigned',
+  //         productPage: true,
+  //         discountedPrice,
+  //         discountPercent,
+  //         discountName,
+  //         discountEnd
+  //     });
+  // }
 
-        discountPercent = bestSale.percentage;
-        discountName = bestSale.title;
-        discountEnd = bestSale.endDate;
-    }
+  // let user = await userModel.findOne({ username: req.user.username });
+  // let cart = user?.cart || [];
 
-    let discountedPrice = null;
-    if (discountPercent > 0) {
-        discountedPrice = product.price - (product.price * discountPercent / 100);
-    }
-
-    // if (!req.user || req.user === 'unsigned') {
-    //     return res.render('product', {
-    //         product,
-    //         user: 'unsigned',
-    //         productPage: true,
-    //         discountedPrice,
-    //         discountPercent,
-    //         discountName,
-    //         discountEnd
-    //     });
-    // }
-
-    // let user = await userModel.findOne({ username: req.user.username });
-    // let cart = user?.cart || [];
-
-    res.render('product', { product, user: res.locals.user, cart: res.locals.cart, productPage: true, discountPercent, discountedPrice,discountName,discountEnd});
+  res.render('product', { product, user: res.locals.user, cart: res.locals.cart, productPage: true, discountPercent, discountedPrice, discountName, discountEnd });
 });
 
 router.get('/clothings/:category', isLoggedIn, async (req, res) => {
@@ -416,7 +428,7 @@ router.get('/clothings/:category', isLoggedIn, async (req, res) => {
           return p;
         })
       );
-  
+
       return res.render('categorized', {
         user: req.user,
         req,
@@ -447,7 +459,7 @@ router.get('/clothings/:category', isLoggedIn, async (req, res) => {
         return p;
       })
     );
-    console.log(selectedProducts , "all here")
+    console.log(selectedProducts, "all here")
     return res.render('categorized', {
       user: req.user,
       req,
@@ -518,7 +530,7 @@ router.get('/fits/:gender', isLoggedIn, async (req, res) => {
     selectedProducts = await Promise.all(
       selectedProducts.map(async (p) => {
         const discountInfo = await getDiscountForProduct(p._id);
-        p = p.toObject(); 
+        p = p.toObject();
         p.discountInfo = discountInfo;
         return p;
       })
@@ -549,129 +561,129 @@ router.get('/fits/:gender', isLoggedIn, async (req, res) => {
 });
 
 router.get('/login', (req, res) => {
-    let loginError = req.flash('loginError')
-    res.render('login', { loginError })
+  let loginError = req.flash('loginError')
+  res.render('login', { loginError })
 })
 
 router.post('/add-to-cart/:id', isLoggedIn, async (req, res) => {
-    console.log(req.user)
-    const productId = req.params.id;
+  console.log(req.user)
+  const productId = req.params.id;
 
-    if (!req.user || req.user === "unsigned") {
-        let cart = [];
+  if (!req.user || req.user === "unsigned") {
+    let cart = [];
 
-        try {
-            cart = JSON.parse(req.cookies.guestCart || "[]");
-        } catch (e) {
-            cart = [];
-        }
-        
-        const existing = cart.find(item => item.productId.toString() === productId.toString());
-
-        if (existing) {
-            existing.quantity += 1;
-        } else {
-            const product = await productsModel.findById(productId);
-            cart.push({
-                productId: productId.toString(),
-                title: product.title,
-                quantity: 1,
-                price: product.price,
-                image: product.mainImage
-            });
-        }
-
-        // const productId = req.params.id;
-
-
-        // const existing = cart.find(item => item.productId === productId);
-
-        // if (existing) {
-        //     existing.quantity += 1;
-        // } else {
-
-        //     const product = await productsModel.findById(productId);
-        //     cart.push({
-        //         productId,
-        //         title: product.title,
-        //         quantity: 1,
-        //         price: product.price,
-        //         image: product.mainImage
-        //     });
-        // }
-
-        res.cookie("guestCart", JSON.stringify(cart), {
-            httpOnly: false,
-            maxAge: 1000 * 60 * 60 * 24 * 30, 
-            secure: false
-        });
-        res.locals.cart = cart;
-
-        return res.status(200).json({ guest: true, cart });
+    try {
+      cart = JSON.parse(req.cookies.guestCart || "[]");
+    } catch (e) {
+      cart = [];
     }
-    console.log("here")
 
-    const user = await userModel.findOne({ username: req.user.username });
-
-    const existing = user.cart.find(
-        item => item.productId.toString() === productId.toString()
-    );
+    const existing = cart.find(item => item.productId.toString() === productId.toString());
 
     if (existing) {
-        existing.quantity += 1;
+      existing.quantity += 1;
     } else {
-        user.cart.push({
-            productId: productId,
-            quantity: 1
-        });
+      const product = await productsModel.findById(productId);
+      cart.push({
+        productId: productId.toString(),
+        title: product.title,
+        quantity: 1,
+        price: product.price,
+        image: product.mainImage
+      });
     }
 
-    await user.save();
-    res.locals.cart = user.cart;
+    // const productId = req.params.id;
 
-    res.json({ guest: false, cart: user.cart });
+
+    // const existing = cart.find(item => item.productId === productId);
+
+    // if (existing) {
+    //     existing.quantity += 1;
+    // } else {
+
+    //     const product = await productsModel.findById(productId);
+    //     cart.push({
+    //         productId,
+    //         title: product.title,
+    //         quantity: 1,
+    //         price: product.price,
+    //         image: product.mainImage
+    //     });
+    // }
+
+    res.cookie("guestCart", JSON.stringify(cart), {
+      httpOnly: false,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      secure: false
+    });
+    res.locals.cart = cart;
+
+    return res.status(200).json({ guest: true, cart });
+  }
+  console.log("here")
+
+  const user = await userModel.findOne({ username: req.user.username });
+
+  const existing = user.cart.find(
+    item => item.productId.toString() === productId.toString()
+  );
+
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    user.cart.push({
+      productId: productId,
+      quantity: 1
+    });
+  }
+
+  await user.save();
+  res.locals.cart = user.cart;
+
+  res.json({ guest: false, cart: user.cart });
 });
 
-  
+
 router.get('/cart', isLoggedIn, async (req, res) => {
 
-    let error = req.flash('error');
+  let error = req.flash('error');
 
 
-    if (!req.user || req.user === "unsigned") {
+  if (!req.user || req.user === "unsigned") {
 
-        let guestCart = [];
-        try {
-            guestCart = JSON.parse(req.cookies.guestCart || "[]");
-        } catch (e) {
-            guestCart = [];
-        }
-        // console.log(guestCart)
-        for (let item of guestCart) {
-            item.discountInfo = await getDiscountForProduct(item.productId);
-        }
-        console.log(guestCart)
-        return res.render('cart', {
-            user: "unsigned",
-            cart: guestCart,
-            guest: true,
-            error
-        });
+    let guestCart = [];
+    try {
+      guestCart = JSON.parse(req.cookies.guestCart || "[]");
+    } catch (e) {
+      guestCart = [];
     }
-
-    let user = await userModel
-        .findOne({ username: req.user.username })
-        .populate({ path: 'cart.productId' });
-            for (let item of user.cart) {
-        item.discountInfo = await getDiscountForProduct(item.productId._id);
+    // console.log(guestCart)
+    for (let item of guestCart) {
+      item.discountInfo = await getDiscountForProduct(item.productId);
     }
-    console.log(user.cart)
-    res.render('cart', {
-        user: req.user,
-        cart: user.cart,
-        guest: false,
-        error
+    console.log(guestCart)
+    return res.render('cart', {
+      user: "unsigned",
+      cart: guestCart,
+      guest: true,
+      error
     });
+  }
+
+  let user = await userModel
+    .findOne({ username: req.user.username })
+    .populate({ path: 'cart.productId' });
+  for (let item of user.cart) {
+    item.discountInfo = await getDiscountForProduct(item.productId._id);
+  }
+  console.log(user.cart)
+  res.render('cart', {
+    user: req.user,
+    cart: user.cart,
+    guest: false,
+    error
+  });
 });
 
 
@@ -691,433 +703,186 @@ router.get('/product-json/:id', async (req, res) => {
 
 
 router.get('/remove-from-cart/:id', isLoggedIn, async (req, res) => {
-    let user = await userModel.findOne({ username: req.user.username })
-           if (!user) {
-        try {
-            guestCart = JSON.parse(req.cookies.guestCart || "[]");
-        } catch (e) {
-            guestCart = [];
-        }
-     guestCart = guestCart.filter(p => p.productId !== req.params.id)
+  let user = await userModel.findOne({ username: req.user.username })
+  if (!user) {
+    try {
+      guestCart = JSON.parse(req.cookies.guestCart || "[]");
+    } catch (e) {
+      guestCart = [];
+    }
+    guestCart = guestCart.filter(p => p.productId !== req.params.id)
 
     res.cookie("guestCart", JSON.stringify(guestCart), { httpOnly: true });
     return res.redirect('/cart')
 
-    }
-    await user.updateOne({ $pull: { cart: { productId: req.params.id } } })
-    try {
-        res.redirect('/cart')
-    } catch (error) {
-        console.log(error)
-        req.flash("error", "Something went wrong")
-        return res.redirect("/cart")
-    }
+  }
+  await user.updateOne({ $pull: { cart: { productId: req.params.id } } })
+  try {
+    res.redirect('/cart')
+  } catch (error) {
+    console.log(error)
+    req.flash("error", "Something went wrong")
+    return res.redirect("/cart")
+  }
 })
 router.get('/sub-quantity/:id', isLoggedIn, async (req, res) => {
-    let user = await userModel.findOne({ username: req.user.username })
-        if (!user) {
-        try {
-            guestCart = JSON.parse(req.cookies.guestCart || "[]");
-        } catch (e) {
-            guestCart = [];
-        }
+  let user = await userModel.findOne({ username: req.user.username })
+  if (!user) {
+    try {
+      guestCart = JSON.parse(req.cookies.guestCart || "[]");
+    } catch (e) {
+      guestCart = [];
+    }
     const product = guestCart.find(p => p.productId === req.params.id)
 
-    if(product && product.quantity > 1) {
-        product.quantity -= 1
-    } else{
-        product.quantity = 1
-        req.flash('error', 'You must have at least one product to purchase')
-        return res.redirect('/cart')
+    if (product && product.quantity > 1) {
+      product.quantity -= 1
+    } else {
+      product.quantity = 1
+      req.flash('error', 'You must have at least one product to purchase')
+      return res.redirect('/cart')
     }
     res.cookie("guestCart", JSON.stringify(guestCart), { httpOnly: true });
     return res.redirect('/cart')
 
-    }
-    let product = user.cart.find(product => product.productId.toString() == req.params.id)
-    console.log(product)
-    if(product && product.quantity > 1) {
-        product.quantity -= 1
-    } else{
-        product.quantity = 1
-        req.flash('error', 'You must have at least one product to purchase')
-        return res.redirect('/cart')
-    }
-    try {
-        await user.save()
-        res.redirect('/cart')
-    } catch (error) {
-        req.flash("error", "Something went wrong")
-        return res.redirect("/cart")
-    }
+  }
+  let product = user.cart.find(product => product.productId.toString() == req.params.id)
+  console.log(product)
+  if (product && product.quantity > 1) {
+    product.quantity -= 1
+  } else {
+    product.quantity = 1
+    req.flash('error', 'You must have at least one product to purchase')
+    return res.redirect('/cart')
+  }
+  try {
+    await user.save()
+    res.redirect('/cart')
+  } catch (error) {
+    req.flash("error", "Something went wrong")
+    return res.redirect("/cart")
+  }
 
 })
 router.get('/add-quantity/:id', isLoggedIn, async (req, res) => {
-    let user = await userModel.findOne({ username: req.user.username })
-    if (!user) {
-        try {
-            guestCart = JSON.parse(req.cookies.guestCart || "[]");
-        } catch (e) {
-            guestCart = [];
-        }
+  let user = await userModel.findOne({ username: req.user.username })
+  if (!user) {
+    try {
+      guestCart = JSON.parse(req.cookies.guestCart || "[]");
+    } catch (e) {
+      guestCart = [];
+    }
     const product = guestCart.find(p => p.productId === req.params.id)
 
-    if(product && product.quantity < 200) {
-        product.quantity += 1
-    } else{
-        product.quantity = 200
-        req.flash('error', 'cannot order more than 200 products')
-        return res.redirect('/cart')
+    if (product && product.quantity < 200) {
+      product.quantity += 1
+    } else {
+      product.quantity = 200
+      req.flash('error', 'cannot order more than 200 products')
+      return res.redirect('/cart')
     }
     res.cookie("guestCart", JSON.stringify(guestCart), { httpOnly: true });
     return res.redirect('/cart')
 
-    }
-    console.log(user.cart)
-    let product = user.cart.find(product => product.productId.toString() === req.params.id)
-    console.log(product)
-    if(product && product.quantity < 200) {
-        product.quantity += 1
-    } else{
-        product.quantity = 200
-        req.flash('error', 'cannot order more than 200 products')
-        return res.redirect('/cart')
-    }
-    try {
-        await user.save()
-        res.redirect('/cart')
-    } catch (error) {
-        req.flash("error", "Something went wrong")
-        return res.redirect("/cart")
-    }
+  }
+  console.log(user.cart)
+  let product = user.cart.find(product => product.productId.toString() === req.params.id)
+  console.log(product)
+  if (product && product.quantity < 200) {
+    product.quantity += 1
+  } else {
+    product.quantity = 200
+    req.flash('error', 'cannot order more than 200 products')
+    return res.redirect('/cart')
+  }
+  try {
+    await user.save()
+    res.redirect('/cart')
+  } catch (error) {
+    req.flash("error", "Something went wrong")
+    return res.redirect("/cart")
+  }
 
 })
 router.get('/checkout/:id', isLoggedIn, async (req, res) => {
-    let user = await userModel.findOne({ username: req.user.username })
-    let product = await productModel.findOne({ _id: req.params.id })
-    let discountInfo = await getDiscountForProduct(product._id)
-    product.discountInfo = discountInfo
+  let user = await userModel.findOne({ username: req.user.username })
+  let product = await productModel.findOne({ _id: req.params.id })
+  let discountInfo = await getDiscountForProduct(product._id)
+  product.discountInfo = discountInfo
 
-    res.render('checkout', {user: req.user, cart: user?.cart || [], product, req: req})
+  res.render('checkout', { user: req.user, cart: user?.cart || [], product, req: req })
 })
-
-// router.post('/checkout', isLoggedIn, async (req, res) => {
-//   try {
-//     let {
-//       fullName,
-//       lastName,
-//       street,
-//       city,
-//       state,
-//       zip,
-//       phoneNumber,
-//       email,
-//       single,
-//       productId,
-//       quantity
-//     } = req.body;
-
-//     const isGuest = req.user === "unsigned";
-//     const adminEmail = process.env.ADMIN_EMAIL;
-
-//     let orderItems = [];
-
-//     // Helper to get product info and discounted price
-//     const getOrderItem = async (id, qty) => {
-//       const product = await productModel.findById(id);
-//       const discount = await getDiscountForProduct(id);
-//       return {
-//         productId: id,
-//         quantity: qty || 1,
-//         originalPrice: product.price,   // store original price
-//         finalPrice: discount.finalPrice // store discounted price
-//       };
-//     };
-
-//     if (isGuest) {
-//       if (single === "true") {
-//         orderItems.push(await getOrderItem(productId, quantity));
-//       } else {
-//         let guestCart = [];
+// router.post('/checkout', isLoggedInStrict, async (req,res) => {
+//     let {fullName, lastName,street, city, state, zip, phoneNumber, totalPrice, email} = req.body
+//     let user = await userModel.findOne({ username: req.user.username })
+//     if(req.body.single){
+//         let product = await productModel.findOne({_id: req.body.productId})
 //         try {
-//           guestCart = JSON.parse(req.cookies.guestCart || "[]");
-//         } catch (e) {
-//           guestCart = [];
+//             let order = await orderModel.create({
+//                 fullName,
+//                 lastName,
+//                 shippingAddress : {
+//                     street,
+//                     city,
+//                     state,
+//                     zip
+//                 },
+//                 items: {productId: product._id},
+//                 totalPrice: product.price,
+//                 status: 'confirmed',
+//                 userId: req.user.userId
+
+//             }) 
+//             req.session.checkoutDone = 'true'
+//             user.orders.push(order)
+//             await user.save()
+//             return res.redirect('/success-checkout')
+//         } catch (error) {
+//             console.log(error)
 //         }
-
-//         orderItems = await Promise.all(
-//           guestCart.map(item => getOrderItem(item.productId, item.quantity))
-//         );
-//       }
-//     } else {
-//       // Logged-in user
-//       if (single === "true") {
-//         orderItems.push(await getOrderItem(productId, quantity));
-//       } else {
-//         const user = await userModel.findOne({ username: req.user.username });
-//         orderItems = await Promise.all(
-//           user.cart.map(i => getOrderItem(i.productId, i.quantity))
-//         );
-
-//         // Clear user cart
-//         user.cart = [];
-//         await user.save();
-//       }
 //     }
+//     if(req.body.cart){
+//         let cart = user.cart
+//        let orderItems = []
+//        cart.forEach((item) => {
+//         orderItems.push({
+//             productId: item.productId,
+//             quantity: item.quantity
+//         })
+//        })
+//         try {
+//             let order = await orderModel.create({
+//                 fullName,
+//                 email,
+//                 phoneNumber,
+//                 shippingAddress : {
+//                     street,
+//                     city,
+//                     state,
+//                     zip
+//                 },
+//                 items: orderItems,
+//                 totalPrice: Number(totalPrice) + 250,
+//                 status: 'confirmed',
+//                 userId: req.user.userId
+//             })
+//             req.session.checkoutDone = 'true'
+//             user.orders.push(order)
+//             user.cart = []
+//             await user.save()
+//             return res.redirect('/success-checkout')
+//         } catch (error) {
+//             console.log(error)
+//         }
+//     }
+// })
+// router.get('/order/:id', async (req, res) => {
+//   const order = await orderModel.findById(req.params.id);
 
-//     // Calculate totalPrice using discounted prices
-//     const totalPrice = orderItems.reduce((sum, item) => {
-//       return sum + item.finalPrice * item.quantity;
-//     }, 0);
-
-//     const orderData = {
-//       fullName,
-//       lastName,
-//       phoneNumber,
-//       email,
-//       shippingAddress: { street, city, state, zip },
-//       items: orderItems,
-//       totalPrice,
-//       status: "confirmed",
-//       userId: isGuest ? null : req.user.userId,
-//       isGuest
-//     };
-
-//     const order = await orderModel.create(orderData);
-//     await order.populate({ path: "items.productId" });
-
-//     // Send confirmation emails
-//     await sendEmail({
-//       to: email,
-//       subject: "Your Bunny Hop Shop Order Confirmation",
-//       html: orderEmailTemplate(order)
-//     });
-
-//     await sendEmail({
-//       to: adminEmail,
-//       subject: "New Order Received",
-//       html: `<h2>New Order Alert</h2>
-//              <p>Order ID: ${order._id}</p>
-//              <p>Customer: ${order.fullName}</p>
-//              <p>Total: PKR.${order.totalPrice}</p>
-//              <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>
-//              <p>
-//                <a href="${process.env.FRONTEND_URL}/order/${order._id}" 
-//                   style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
-//                   View Order Receipt
-//                </a>
-//              </p>
-//              <p>
-//                Or see all orders here: 
-//                <a href="${process.env.FRONTEND_URL}/orders/all">Orders Dashboard</a>
-//              </p>`
-//     });
-
-//     if (isGuest) res.clearCookie("guestCart");
-
-//     req.session.checkoutDone = "true";
-//     return res.redirect(`/order/${order._id}`);
-
-//   } catch (error) {
-//     console.log(error);
-//     req.flash("error", "Error in Checkout");
-//     res.status(500).send("Checkout failed");
-//   }
+//   res.render('success-checkout', { 
+//     order: order 
+//   });
 // });
-
-
-router.post('/checkout', isLoggedIn, async (req, res) => {
-  try {
-    let {
-      fullName,
-      lastName,
-      street,
-      city,
-      state,
-      zip,
-      phoneNumber,
-      email,
-      totalPrice,
-      single,
-      productId,
-      quantity
-    } = req.body;
-
-    const isGuest = req.user === "unsigned";
-    const adminEmail = process.env.ADMIN_EMAIL 
-
-    if (isGuest) {
-      let orderItems = [];
-
-      if (single === "true") {
-        orderItems.push({ productId, quantity: quantity || 1 });
-      } else {
-        let guestCart = [];
-        try {
-          guestCart = JSON.parse(req.cookies.guestCart || "[]");
-        } catch (e) {
-          guestCart = [];
-        }
-        guestCart.forEach(item => {
-          orderItems.push({ productId: item.productId, quantity: item.quantity });
-        });
-      }
-
-      const order = await orderModel.create({
-        fullName,
-        lastName,
-        phoneNumber,
-        email,
-        shippingAddress: { street, city, state, zip },
-        items: orderItems,
-        totalPrice: Number(totalPrice),
-        status: "confirmed",
-        userId: null,
-        isGuest: true
-      });
-
-      await order.populate({ path: "items.productId" });
-
-      await sendEmail({
-        to: email,
-        subject: "Your Bunny Hop Shop Order Confirmation",
-        html: orderEmailTemplate(order)
-      });
-
-
-await sendEmail({
-  to: adminEmail,
-  subject: "New Order Received",
-  html: `<h2>New Order Alert</h2>
-         <p>Order ID: ${order._id}</p>
-         <p>Customer: ${order.fullName}</p>
-         <p>Total: PKR.${order.totalPrice}</p>
-         <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>
-         <p>
-           <a href="${process.env.FRONTEND_URL}/order/${order._id}" 
-              style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
-              View Order Receipt
-           </a>
-         </p>
-         <p>
-           Or see all orders here: 
-           <a href="${process.env.FRONTEND_URL}/orders/all">Orders Dashboard</a>
-         </p>`
-});
-
-      res.clearCookie("guestCart");
-      req.session.checkoutDone = "true";
-      return res.redirect(`/order/${order._id}`);
-    }
-
-    let user = await userModel.findOne({ username: req.user.username });
-
-    if (single === "true") {
-      let order = await orderModel.create({
-        fullName,
-        lastName,
-        phoneNumber,
-        shippingAddress: { street, city, state, zip },
-        items: [{ productId, quantity: quantity || 1 }],
-        totalPrice: Number(totalPrice),
-        status: "confirmed",
-        userId: req.user.userId
-      });
-
-      await order.populate({ path: "items.productId" });
-
-      user.orders.push(order);
-      await user.save();
-
-  
-      await sendEmail({
-        to: user.email,
-        subject: "Your Bunny Hop Shop Order Confirmation",
-        html: orderEmailTemplate(order)
-      });
-      console.log(order)
-await sendEmail({
-  to: adminEmail,
-  subject: "New Order Received",
-  html: `<h2>New Order Alert</h2>
-         <p>Order ID: ${order._id}</p>
-         <p>Customer: ${order.fullName}</p>
-         <p>Total: PKR.${order.totalPrice}</p>
-         <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>
-         <p>
-           <a href="${process.env.FRONTEND_URL}/order/${order._id}" 
-              style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
-              View Order Receipt
-           </a>
-         </p>
-         <p>
-           Or see all orders here: 
-           <a href="${process.env.FRONTEND_URL}/orders/all">Orders Dashboard</a>
-         </p>`
-});
-
-
-      req.session.checkoutDone = "true";
-      return res.redirect(`/order/${order._id}`);
-    }
-
-    let orderItems = user.cart.map(i => ({
-      productId: i.productId,
-      quantity: i.quantity
-    }));
-
-    let order = await orderModel.create({
-      fullName,
-      email,
-      phoneNumber,
-      shippingAddress: { street, city, state, zip },
-      items: orderItems,
-      totalPrice: Number(totalPrice),
-      status: "confirmed",
-      userId: req.user.userId
-    });
-
-    await order.populate({ path: "items.productId" });
-
-    user.orders.push(order);
-    user.cart = [];
-    await user.save();
-
-    await sendEmail({
-      to: user.email,
-      subject: "Your Bunny Hop Shop Order Confirmation",
-      html: orderEmailTemplate(order)
-    });
-
-await sendEmail({
-  to: adminEmail,
-  subject: "New Order Received",
-  html: `<h2>New Order Alert</h2>
-         <p>Order ID: ${order._id}</p>
-         <p>Customer: ${order.fullName}</p>
-         <p>Total: PKR.${order.totalPrice}</p>
-         <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>
-         <p>
-           <a href="${process.env.FRONTEND_URL}/order/${order._id}" 
-              style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
-              View Order Receipt
-           </a>
-         </p>
-         <p>
-           Or see all orders here: 
-           <a href="${process.env.FRONTEND_URL}/orders/all">Orders Dashboard</a>
-         </p>`
-});
-
-    req.session.checkoutDone = "true";
-    return res.redirect(`/order/${order._id}`);
-
-  } catch (error) {
-    console.log(error);
-    req.flash("error", "Error in Checkout");
-    res.status(500).send("Checkout failed");
-  }
-});
 
 router.get('/order/:id', async (req, res) => {
   try {
@@ -1139,7 +904,7 @@ router.get('/order/:id', async (req, res) => {
 
     // Render dynamic page
     res.render('success-checkout', {
-      user: req.user || null,  
+      user: req.user || null,
       order: order,
       userType
     });
@@ -1253,7 +1018,7 @@ router.get('/order/:id', async (req, res) => {
 //       user.orders.push(order);
 //       await user.save();
 
-  
+
 //       await sendEmail({
 //         to: user.email,
 //         subject: "Your Bunny Hop Shop Order Confirmation",
@@ -1343,150 +1108,27 @@ router.get('/order/:id', async (req, res) => {
 //   }
 // });
 
+// router.get('/success-checkout', isLoggedIn, async (req, res) => {
 
-
-// router.post('/checkout', isLoggedIn, async (req, res) => {
-//   try {
-//     let {
-//       fullName,
-//       lastName,
-//       street,
-//       city,
-//       state,
-//       zip,
-//       phoneNumber,
-//       email,
-//       single,
-//       productId,
-//       quantity
-//     } = req.body;
-
-//     const isGuest = req.user === "unsigned";
-//     const adminEmail = process.env.ADMIN_EMAIL;
-
-//     let orderItems = [];
-
-//     if (isGuest) {
-//       // Guest user
-//       if (single === "true") {
-//         const product = await productModel.findById(productId);
-//         const discount = await getDiscountForProduct(productId);
-
-//         orderItems.push({
-//           productId,
-//           quantity: quantity || 1,
-//           finalPrice: discount.finalPrice
-//         });
-//       } else {
-//         let guestCart = [];
-//         try {
-//           guestCart = JSON.parse(req.cookies.guestCart || "[]");
-//         } catch (e) {
-//           guestCart = [];
-//         }
-
-//         // Calculate discounted prices for all items
-//         orderItems = await Promise.all(guestCart.map(async item => {
-//           const discount = await getDiscountForProduct(item.productId);
-//           return {
-//             productId: item.productId,
-//             quantity: item.quantity,
-//             finalPrice: discount.finalPrice
-//           };
-//         }));
-//       }
-//     } else {
-//       // Logged-in user
-//       if (single === "true") {
-//         const product = await productModel.findById(productId);
-//         const discount = await getDiscountForProduct(productId);
-
-//         orderItems.push({
-//           productId,
-//           quantity: quantity || 1,
-//           finalPrice: discount.finalPrice
-//         });
-//       } else {
-//         const user = await userModel.findOne({ username: req.user.username });
-//         orderItems = await Promise.all(user.cart.map(async i => {
-//           const discount = await getDiscountForProduct(i.productId);
-//           return {
-//             productId: i.productId,
-//             quantity: i.quantity,
-//             finalPrice: discount.finalPrice
-//           };
-//         }));
-
-//         // Clear user cart
-//         user.cart = [];
-//         await user.save();
-//       }
+//     if (!req.session.lastOrderId) {
+//         return res.send("No order found");
 //     }
 
-//     // Calculate totalPrice with discounts
-//     const totalPrice = orderItems.reduce((sum, item) => {
-//       return sum + item.finalPrice * item.quantity;
-//     }, 0);
+//     const order = await orderModel
+//         .findById(req.session.lastOrderId)
+//         .populate("items.productId");
 
-//     // Create order
-//     const orderData = {
-//       fullName,
-//       lastName,
-//       phoneNumber,
-//       email,
-//       shippingAddress: { street, city, state, zip },
-//       items: orderItems,
-//       totalPrice,
-//       status: "confirmed",
-//       userId: isGuest ? null : req.user.userId,
-//       isGuest
-//     };
+//     let user = await userModel.findOne({ username: req.user.username });
+//     let cart = user?.cart || [];
 
-//     const order = await orderModel.create(orderData);
-//     await order.populate({ path: "items.productId" });
-
-//     // Send confirmation emails
-//     await sendEmail({
-//       to: email,
-//       subject: "Your Bunny Hop Shop Order Confirmation",
-//       html: orderEmailTemplate(order)
+//     res.render('success-checkout', {
+//         user: req.user,
+//         cart,
+//         order
 //     });
-
-//     await sendEmail({
-//       to: adminEmail,
-//       subject: "New Order Received",
-//       html: `<h2>New Order Alert</h2>
-//              <p>Order ID: ${order._id}</p>
-//              <p>Customer: ${order.fullName}</p>
-//              <p>Total: PKR.${order.totalPrice}</p>
-//              <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>
-//              <p>
-//                <a href="${process.env.FRONTEND_URL}/order/${order._id}" 
-//                   style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
-//                   View Order Receipt
-//                </a>
-//              </p>
-//              <p>
-//                Or see all orders here: 
-//                <a href="${process.env.FRONTEND_URL}/orders/all">Orders Dashboard</a>
-//              </p>`
-//     });
-
-//     if (isGuest) res.clearCookie("guestCart");
-
-//     req.session.checkoutDone = "true";
-//     return res.redirect(`/order/${order._id}`);
-
-//   } catch (error) {
-//     console.log(error);
-//     req.flash("error", "Error in Checkout");
-//     res.status(500).send("Checkout failed");
-//   }
 // });
 
 
-
-
 // router.post('/checkout', isLoggedIn, async (req, res) => {
 //   try {
 //     let {
@@ -1505,32 +1147,18 @@ router.get('/order/:id', async (req, res) => {
 //     } = req.body;
 
 //     const isGuest = req.user === "unsigned";
-//     const adminEmail = process.env.ADMIN_EMAIL;
 
-//     // ============================================
-//     // FUNCTION: Build orderItems with price + discount
-//     // ============================================
-//     async function buildItem(prodId, qty) {
-//       const product = await productModel.findById(prodId);
 
-//       return {
-//         productId: prodId,
-//         quantity: qty,
-//         price: product.price,
-//         discountedPrice: product.discountedPrice || null
-//       };
-//     }
-
-//     // ============================================
-//     // =======   GUEST USER CHECKOUT  ==============
-//     // ============================================
 //     if (isGuest) {
 //       let orderItems = [];
 
 //       if (single === "true") {
-//         orderItems.push(await buildItem(productId, quantity || 1));
-
+//         orderItems.push({
+//           productId,
+//           quantity: quantity || 1
+//         });
 //       } else {
+
 //         let guestCart = [];
 //         try {
 //           guestCart = JSON.parse(req.cookies.guestCart || "[]");
@@ -1538,9 +1166,12 @@ router.get('/order/:id', async (req, res) => {
 //           guestCart = [];
 //         }
 
-//         for (let item of guestCart) {
-//           orderItems.push(await buildItem(item.productId, item.quantity));
-//         }
+//         guestCart.forEach(item => {
+//           orderItems.push({
+//             productId: item.productId,
+//             quantity: item.quantity
+//           });
+//         });
 //       }
 
 //       const order = await orderModel.create({
@@ -1550,7 +1181,7 @@ router.get('/order/:id', async (req, res) => {
 //         email,
 //         shippingAddress: { street, city, state, zip },
 //         items: orderItems,
-//         totalPrice: Number(totalPrice),
+//         totalPrice: Number(totalPrice),   
 //         status: "confirmed",
 //         userId: null,
 //         isGuest: true
@@ -1564,45 +1195,26 @@ router.get('/order/:id', async (req, res) => {
 //         html: orderEmailTemplate(order)
 //       });
 
-//       await sendEmail({
-//         to: adminEmail,
-//         subject: "New Order Received",
-//         html: `<h2>New Order Alert</h2>
-//                <p>Order ID: ${order._id}</p>
-//                <p>Customer: ${order.fullName}</p>
-//                <p>Total: PKR.${order.totalPrice}</p>
-//                <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>`
-//       });
-
-//       res.clearCookie("guestCart");
+//       res.clearCookie("guestCart"); 
 //       req.session.checkoutDone = "true";
 //       return res.redirect(`/order/${order._id}`);
+
 //     }
 
-//     // ============================================
-//     // =======   LOGGED-IN USER CHECKOUT  =========
-//     // ============================================
 
 //     let user = await userModel.findOne({ username: req.user.username });
 
-//     // 💚 Single product checkout
 //     if (single === "true") {
-//       let orderItems = [
-//         await buildItem(productId, quantity || 1)
-//       ];
 
 //       let order = await orderModel.create({
 //         fullName,
 //         lastName,
-//         phoneNumber,
 //         shippingAddress: { street, city, state, zip },
-//         items: orderItems,
-//         totalPrice: Number(totalPrice),
+//         items: [{ productId, quantity: quantity || 1 }],
+//         totalPrice: Number(totalPrice),   
 //         status: "confirmed",
 //         userId: req.user.userId
 //       });
-
-//       await order.populate({ path: "items.productId" });
 
 //       user.orders.push(order);
 //       await user.save();
@@ -1613,25 +1225,15 @@ router.get('/order/:id', async (req, res) => {
 //         html: orderEmailTemplate(order)
 //       });
 
-//       await sendEmail({
-//         to: adminEmail,
-//         subject: "New Order Received",
-//         html: `<h2>New Order Alert</h2>
-//                <p>Order ID: ${order._id}</p>
-//                <p>Customer: ${order.fullName}</p>
-//                <p>Total: PKR.${order.totalPrice}</p>
-//                <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>`
-//       });
-
 //       req.session.checkoutDone = "true";
 //       return res.redirect(`/order/${order._id}`);
 //     }
 
-//     // 💚 Full cart checkout
-//     let orderItems = [];
-//     for (let item of user.cart) {
-//       orderItems.push(await buildItem(item.productId, item.quantity));
-//     }
+
+//     let orderItems = user.cart.map(i => ({
+//       productId: i.productId,
+//       quantity: i.quantity
+//     }));
 
 //     let order = await orderModel.create({
 //       fullName,
@@ -1639,15 +1241,13 @@ router.get('/order/:id', async (req, res) => {
 //       phoneNumber,
 //       shippingAddress: { street, city, state, zip },
 //       items: orderItems,
-//       totalPrice: Number(totalPrice),
+//       totalPrice: Number(totalPrice), 
 //       status: "confirmed",
 //       userId: req.user.userId
 //     });
 
-//     await order.populate({ path: "items.productId" });
-
 //     user.orders.push(order);
-//     user.cart = [];
+//     user.cart = []; 
 //     await user.save();
 
 //     await sendEmail({
@@ -1656,225 +1256,161 @@ router.get('/order/:id', async (req, res) => {
 //       html: orderEmailTemplate(order)
 //     });
 
-//     await sendEmail({
-//       to: adminEmail,
-//       subject: "New Order Received",
-//       html: `<h2>New Order Alert</h2>
-//              <p>Order ID: ${order._id}</p>
-//              <p>Customer: ${order.fullName}</p>
-//              <p>Total: PKR.${order.totalPrice}</p>
-//              <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>`
-//     });
-
 //     req.session.checkoutDone = "true";
 //     return res.redirect(`/order/${order._id}`);
 
+
 //   } catch (error) {
 //     console.log(error);
-//     req.flash("error", "Error in Checkout");
 //     res.status(500).send("Checkout failed");
 //   }
 // });
 
-// router.post('/checkout', isLoggedIn, async (req, res) => {
-//   try {
-//     let {
-//       fullName,
-//       lastName,
-//       street,
-//       city,
-//       state,
-//       zip,
-//       phoneNumber,
-//       email,
-//       totalPrice,
-//       single,
-//       productId,
-//       quantity
-//     } = req.body;
+router.post('/checkout', isLoggedIn, async (req, res) => {
+  try {
+    let {
+      fullName,
+      lastName,
+      street,
+      city,
+      state,
+      zip,
+      phoneNumber,
+      email,
+      single,
+      productId,
+      quantity
+    } = req.body;
 
-//     const isGuest = req.user === "unsigned";
-//     const adminEmail = process.env.ADMIN_EMAIL;
+    const isGuest = req.user === "unsigned";
+    const adminEmail = process.env.ADMIN_EMAIL;
 
-//     // ==============================
-//     // Helper function to build order item
-//     // ==============================
-//     async function buildItem(prodId, qty) {
-//       const product = await productModel.findById(prodId);
-//       let discountInfo = null;
-//       if (product.discountPercent && product.discountPercent > 0) {
-//         const finalPrice = product.price - (product.price * product.discountPercent / 100);
-//         discountInfo = {
-//           finalPrice,
-//           percent: product.discountPercent,
-//           name: product.discountName || '',
-//           endDate: product.discountEndDate || null
-//         };
-//       }
+    let orderItems = [];
 
-//       return {
-//         productId: prodId,
-//         quantity: qty,
-//         price: product.price,
-//         discountInfo
-//       };
-//     }
+    if (isGuest) {
+      // Guest user
+      if (single === "true") {
+        const product = await productModel.findById(productId);
+        const discount = await getDiscountForProduct(productId);
 
-//     // ==============================
-//     // Guest User Checkout
-//     // ==============================
-//     if (isGuest) {
-//       let orderItems = [];
+        orderItems.push({
+          productId,
+          quantity: quantity || 1,
+          finalPrice: discount.finalPrice
+        });
+      } else {
+        let guestCart = [];
+        try {
+          guestCart = JSON.parse(req.cookies.guestCart || "[]");
+        } catch (e) {
+          guestCart = [];
+        }
 
-//       if (single === "true") {
-//         orderItems.push(await buildItem(productId, quantity || 1));
-//       } else {
-//         let guestCart = [];
-//         try {
-//           guestCart = JSON.parse(req.cookies.guestCart || "[]");
-//         } catch (e) {
-//           guestCart = [];
-//         }
-//         for (let item of guestCart) {
-//           orderItems.push(await buildItem(item.productId, item.quantity));
-//         }
-//       }
+        // Calculate discounted prices for all items
+        orderItems = await Promise.all(guestCart.map(async item => {
+          const discount = await getDiscountForProduct(item.productId);
+          return {
+            productId: item.productId,
+            quantity: item.quantity,
+            finalPrice: discount.finalPrice
+          };
+        }));
+      }
+    } else {
+      // Logged-in user
+      if (single === "true") {
+        const product = await productModel.findById(productId);
+        const discount = await getDiscountForProduct(productId);
 
-//       const order = await orderModel.create({
-//         fullName,
-//         lastName,
-//         phoneNumber,
-//         email,
-//         shippingAddress: { street, city, state, zip },
-//         items: orderItems,
-//         totalPrice: Number(totalPrice),
-//         status: "confirmed",
-//         userId: null,
-//         isGuest: true
-//       });
+        orderItems.push({
+          productId,
+          quantity: quantity || 1,
+          finalPrice: discount.finalPrice
+        });
+      } else {
+        const user = await userModel.findOne({ username: req.user.username });
+        orderItems = await Promise.all(user.cart.map(async i => {
+          const discount = await getDiscountForProduct(i.productId);
+          return {
+            productId: i.productId,
+            quantity: i.quantity,
+            finalPrice: discount.finalPrice
+          };
+        }));
 
-//       await order.populate({ path: "items.productId" });
+        // Clear user cart
+        user.cart = [];
+        await user.save();
+      }
+    }
 
-//       await sendEmail({
-//         to: email,
-//         subject: "Your Bunny Hop Shop Order Confirmation",
-//         html: orderEmailTemplate(order)
-//       });
+    // Calculate totalPrice with discounts
+    const totalPrice = orderItems.reduce((sum, item) => {
+      return sum + item.finalPrice * item.quantity;
+    }, 0);
 
-//       await sendEmail({
-//         to: adminEmail,
-//         subject: "New Order Received",
-//         html: `<h2>New Order Alert</h2>
-//                <p>Order ID: ${order._id}</p>
-//                <p>Customer: ${order.fullName}</p>
-//                <p>Total: PKR.${order.totalPrice}</p>
-//                <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>`
-//       });
+    // Create order
+    const orderData = {
+      fullName,
+      lastName,
+      phoneNumber,
+      email,
+      shippingAddress: { street, city, state, zip },
+      items: orderItems,
+      totalPrice,
+      status: "confirmed",
+      userId: isGuest ? null : req.user.userId,
+      isGuest
+    };
 
-//       res.clearCookie("guestCart");
-//       req.session.checkoutDone = "true";
-//       return res.redirect(`/order/${order._id}`);
-//     }
+    const order = await orderModel.create(orderData);
+    await order.populate({ path: "items.productId" });
 
-//     // ==============================
-//     // Logged-in User Checkout
-//     // ==============================
-//     let user = await userModel.findOne({ username: req.user.username });
+    // Send confirmation emails
+    await sendEmail({
+      to: email,
+      subject: "Your Bunny Hop Shop Order Confirmation",
+      html: orderEmailTemplate(order)
+    });
 
-//     // Single product
-//     if (single === "true") {
-//       const orderItems = [await buildItem(productId, quantity || 1)];
+    await sendEmail({
+      to: adminEmail,
+      subject: "New Order Received",
+      html: `<h2>New Order Alert</h2>
+             <p>Order ID: ${order._id}</p>
+             <p>Customer: ${order.fullName}</p>
+             <p>Total: PKR.${order.totalPrice}</p>
+             <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>
+             <p>
+               <a href="${process.env.FRONTEND_URL}/order/${order._id}" 
+                  style="display:inline-block;padding:10px 15px;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;">
+                  View Order Receipt
+               </a>
+             </p>
+             <p>
+               Or see all orders here: 
+               <a href="${process.env.FRONTEND_URL}/orders/all">Orders Dashboard</a>
+             </p>`
+    });
 
-//       const order = await orderModel.create({
-//         fullName,
-//         lastName,
-//         phoneNumber,
-//         shippingAddress: { street, city, state, zip },
-//         items: orderItems,
-//         totalPrice: Number(totalPrice),
-//         status: "confirmed",
-//         userId: req.user.userId
-//       });
+    if (isGuest) res.clearCookie("guestCart");
 
-//       await order.populate({ path: "items.productId" });
+    req.session.checkoutDone = "true";
+    return res.redirect(`/order/${order._id}`);
 
-//       user.orders.push(order);
-//       await user.save();
+  } catch (error) {
+    console.log(error);
+    req.flash("error", "Error in Checkout");
+    res.status(500).send("Checkout failed");
+  }
+});
 
-//       await sendEmail({
-//         to: user.email,
-//         subject: "Your Bunny Hop Shop Order Confirmation",
-//         html: orderEmailTemplate(order)
-//       });
-
-//       await sendEmail({
-//         to: adminEmail,
-//         subject: "New Order Received",
-//         html: `<h2>New Order Alert</h2>
-//                <p>Order ID: ${order._id}</p>
-//                <p>Customer: ${order.fullName}</p>
-//                <p>Total: PKR.${order.totalPrice}</p>
-//                <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>`
-//       });
-
-//       req.session.checkoutDone = "true";
-//       return res.redirect(`/order/${order._id}`);
-//     }
-
-//     // Full cart checkout
-//     let orderItems = [];
-//     for (let item of user.cart) {
-//       orderItems.push(await buildItem(item.productId, item.quantity));
-//     }
-
-//     const order = await orderModel.create({
-//       fullName,
-//       email,
-//       phoneNumber,
-//       shippingAddress: { street, city, state, zip },
-//       items: orderItems,
-//       totalPrice: Number(totalPrice),
-//       status: "confirmed",
-//       userId: req.user.userId
-//     });
-
-//     await order.populate({ path: "items.productId" });
-
-//     user.orders.push(order);
-//     user.cart = [];
-//     await user.save();
-
-//     await sendEmail({
-//       to: user.email,
-//       subject: "Your Bunny Hop Shop Order Confirmation",
-//       html: orderEmailTemplate(order)
-//     });
-
-//     await sendEmail({
-//       to: adminEmail,
-//       subject: "New Order Received",
-//       html: `<h2>New Order Alert</h2>
-//              <p>Order ID: ${order._id}</p>
-//              <p>Customer: ${order.fullName}</p>
-//              <p>Total: PKR.${order.totalPrice}</p>
-//              <p>Items: ${order.items.map(i => i.productId.title + " x" + i.quantity).join(", ")}</p>`
-//     });
-
-//     req.session.checkoutDone = "true";
-//     return res.redirect(`/order/${order._id}`);
-
-//   } catch (error) {
-//     console.log(error);
-//     req.flash("error", "Error in Checkout");
-//     res.status(500).send("Checkout failed");
-//   }
-// });
 
 
 router.get('/success-checkout', isLoggedIn, checkoutCheckout, async (req, res) => {
-    let user = await userModel.findOne({ username: req.user.username })
-    let cart = user?.cart || []
-    res.render('success-checkout', {user: req.user, cart, req: req})
+  let user = await userModel.findOne({ username: req.user.username })
+  let cart = user?.cart || []
+  res.render('success-checkout', { user: req.user, cart, req: req })
 })
 
 router.post('/create/:id', async (req, res) => {
@@ -1886,7 +1422,7 @@ router.post('/create/:id', async (req, res) => {
 
     const shipmentPayload = {
       booked_packet_weight: 0.5,
-      booking_type: 2, 
+      booking_type: 2,
       cod_amount: order.totalAmount,
       shipper_name: order.customerName,
       shipper_phone: order.customerPhone,
@@ -1955,42 +1491,44 @@ router.post('/create/:id', async (req, res) => {
 });
 
 router.get("/seller/edit/:id", isLoggedInStrict, async (req, res) => {
-    const product = await productsModel.findById(req.params.id);
-    const user = await userModel.findOne({ username: req.user.username });
-    const cart = user?.cart || [];
+  const product = await productsModel.findById(req.params.id);
+  const user = await userModel.findOne({ username: req.user.username });
+  const cart = user?.cart || [];
+  const categories = await categoryModel.find({});
 
-    res.render("dashboard", { 
-        user, 
-        cart, 
-        edit: true, 
-        product, 
-        error: [], 
-        success: []
-    });
+  res.render("dashboard", {
+    user,
+    cart,
+    edit: true,
+    product,
+    categories,
+    error: [],
+    success: []
+  });
 });
 
 router.post("/seller/update/:id", upload.array("images", 5), async (req, res) => {
-    let images = [];
+  let images = [];
 
-    // new images uploaded?
-    if (req.files?.length > 0) {  
+  // new images uploaded?
+  if (req.files?.length > 0) {
     images = req.files.map(file => "/uploads/" + file.filename);
-    } else {
-        const product = await productsModel.findById(req.params.id);
-        images = product?.images || []; 
-    }
+  } else {
+    const product = await productsModel.findById(req.params.id);
+    images = product?.images || [];
+  }
 
-    await productsModel.findByIdAndUpdate(req.params.id, {
-        title: req.body.title,
-        description: req.body.description,
-        price: req.body.price,
-        gender: req.body.gender,
-        color: req.body.color,
-        category: req.body.category,
-        images: images
-    });
+  await productsModel.findByIdAndUpdate(req.params.id, {
+    title: req.body.title,
+    description: req.body.description,
+    price: req.body.price,
+    gender: req.body.gender,
+    color: req.body.color,
+    category: req.body.category,
+    images: images
+  });
 
-    res.redirect("/seller/dashboard");
+  res.redirect("/seller/dashboard");
 });
 
 
